@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ohs-remote-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ohs_remote
+      MYSQL_USER: ohs_user
+      MYSQL_PASSWORD: ohs_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+    networks:
+      - ohs-network
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: ohs-remote-app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      ENVIRONMENT: development
+      DEBUG: "true"
+      SECRET_KEY: dev-secret-key-change-in-production
+      DATABASE_URL: mysql+pymysql://ohs_user:ohs_password@mysql:3306/ohs_remote
+      DATA_DIR: /app/data
+      USE_S3: "false"
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-your-email@gmail.com}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-your-app-password}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@ohsremote.com}
+      SMTP_FROM_NAME: "OHS Remote"
+      STRIPE_API_KEY: sk_test_mock_key
+      STRIPE_WEBHOOK_SECRET: whsec_mock_secret
+      ALLOWED_ORIGINS: '["http://localhost:3000","http://localhost:5173"]'
+      LOG_LEVEL: INFO
+    volumes:
+      - ./data:/app/data
+      - ./templates:/app/templates
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - ohs-network
+    command: >
+      sh -c "
+        echo 'Waiting for MySQL...' &&
+        sleep 10 &&
+        echo 'Starting application...' &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+
+volumes:
+  mysql_data:
+
+networks:
+  ohs-network:
+    driver: bridge
