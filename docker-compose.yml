@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ohs-remote-mysql-dev
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: ohs_remote_dev
+      MYSQL_USER: ohs_dev_user
+      MYSQL_PASSWORD: ohs_dev_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_dev_data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_password"]
+      timeout: 20s
+      retries: 10
+      interval: 5s
+    networks:
+      - ohs-network-dev
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: ohs-remote-app-dev
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.docker
+    volumes:
+      - ./app:/app/app
+      - ./data:/app/data
+      - ./templates:/app/templates
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - ohs-network-dev
+    command: >
+      sh -c "
+        echo 'Waiting for MySQL to be fully ready...' &&
+        sleep 5 &&
+        echo 'Starting application...' &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+
+volumes:
+  mysql_dev_data:
+
+networks:
+  ohs-network-dev:
+    driver: bridge

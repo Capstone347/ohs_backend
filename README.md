@@ -79,6 +79,135 @@ Optional but recommended:
 
 ## Getting Started
 
+### Quick Start Options
+
+Choose your development approach:
+
+#### Option 1: Docker Development (Recommended for Beginners)
+- Everything runs in containers (app + database)
+- Zero local configuration needed
+- Database automatically created
+- Best for: First-time setup, team consistency
+
+#### Option 2: Local Development (Recommended for Active Development)
+- App runs locally with hot reload
+- Database runs in Docker
+- Faster iteration cycle
+- Best for: Active feature development, debugging
+
+---
+
+### Option 1: Docker Development Setup
+
+**Complete containerized environment - database is automatically created**
+
+1. **Clone the repository**
+```bash
+git clone https://github.com/your-org/ohs-remote-backend.git
+cd ohs-remote-backend
+```
+
+2. **Start all services**
+```bash
+docker-compose up --build
+```
+
+The `.env.docker` file is already configured with:
+- MySQL database: `ohs_remote_dev`
+- User: `ohs_dev_user` / Password: `ohs_dev_password`
+- Database is automatically created on first run
+
+3. **Access the application**
+- API: http://localhost:8000
+- Health Check: http://localhost:8000/api/v1/health
+- API Docs: http://localhost:8000/docs
+- Database: localhost:3307 (external access)
+
+4. **View logs**
+```bash
+docker-compose logs -f app
+```
+
+5. **Stop services**
+```bash
+docker-compose down
+```
+
+---
+
+### Option 2: Local Development Setup
+
+**App runs locally, database in Docker - faster development cycle**
+
+1. **Clone the repository**
+```bash
+git clone https://github.com/your-org/ohs-remote-backend.git
+cd ohs-remote-backend
+```
+
+2. **Start only the database**
+```bash
+docker-compose up mysql
+```
+
+The database will be available at `localhost:3307` with:
+- Database: `ohs_remote_dev` (automatically created)
+- Root password: `root_password`
+- Port: 3307 (mapped from container's 3306)
+
+3. **Set up Python environment**
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+```
+
+4. **Configure environment**
+```bash
+cp .env.example .env
+```
+
+The default `.env` is already configured to connect to the Docker MySQL on port 3307.
+
+5. **Run the application**
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+6. **Access the application**
+- API: http://localhost:8000
+- Health Check: http://localhost:8000/api/v1/health
+- API Docs: http://localhost:8000/docs
+- Database: localhost:3307
+
+---
+
+### Production Configuration
+
+For production deployments:
+
+1. **Set required environment variables** in your deployment platform:
+   - `ENVIRONMENT=production`
+   - `DEBUG=false`
+   - `SECRET_KEY` - Generate with: `openssl rand -hex 32`
+   - `DATABASE_URL` - Your cloud database connection string
+   - All SMTP credentials for email delivery
+   - Stripe API keys (production keys)
+
+2. **Never use default values** for:
+   - SECRET_KEY
+   - Database passwords
+   - API keys
+
+3. **Use secrets management**:
+   - AWS Secrets Manager
+   - Google Cloud Secret Manager
+   - Azure Key Vault
+   - Environment variables in your CI/CD platform
+
+---
+
 ### 1. Clone the Repository
 
 ```bash

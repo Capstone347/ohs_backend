@@ -1,0 +1,13 @@
+# Testing
+pytest
+pytest-asyncio
+pytest-cov
+httpx
+
+# Code Quality
+ruff
+mypy
+black
+
+# Type Stubs
+types-python-jose
