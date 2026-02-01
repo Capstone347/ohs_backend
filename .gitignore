@@ -41,6 +41,7 @@ env/
 .env.development
 .env.staging
 .env.production
+.env.docker
 
 # Database
 *.db
