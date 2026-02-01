@@ -7,6 +7,7 @@ pydantic-settings
 # Database
 sqlalchemy
 pymysql
+cryptography
 alembic
 
 # Document Processing
