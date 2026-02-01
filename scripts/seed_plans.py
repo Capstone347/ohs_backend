@@ -1,54 +1,60 @@
 import sys
 from pathlib import Path
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-def seed_plans():
-    try:
-        from sqlalchemy.orm import Session
-        from app.database import SessionLocal
-        from app.models.plan import Plan, PlanSlug, PlanName
-    except ImportError as e:
-        print(f"Import error: {e}")
-        return
-    
-    db = SessionLocal()
-    try:
-        plans = [
-            Plan(
-                slug=PlanSlug.BASIC,
-                name=PlanName.BASIC,
-                description="Basic OHS manual with essential workplace safety procedures",
-                base_price=99.99
-            ),
-            Plan(
-                slug=PlanSlug.COMPREHENSIVE,
-                name=PlanName.COMPREHENSIVE,
-                description="Comprehensive OHS manual with advanced safety protocols, industry-specific content, and legal compliance documentation",
-                base_price=199.99
-            )
-        ]
-        
-        existing_plans = db.query(Plan).all()
-        if len(existing_plans) >= 2:
-            print(f"Plans already exist ({len(existing_plans)} found). Skipping.")
-            return
-        
-        for plan in plans:
-            db.add(plan)
-        
-        db.commit()
-        
-        print("Successfully seeded plans:")
-        for plan in db.query(Plan).all():
-            print(f"{plan.name} (${plan.base_price}): {plan.description}")
-            
-    except Exception as e:
-        db.rollback()
-        print(f"Error: {e}")
-        raise
-    finally:
-        db.close()
+import pymysql
 
-if __name__ == "__main__":
-    seed_plans()
+
+config = {
+    'host': 'localhost',
+    'port': 3307,
+    'user': 'root',
+    'password': 'root_password',
+    'database': 'ohs_remote_dev',
+    'charset': 'utf8mb4'
+}
+
+try:
+    connection = pymysql.connect(**config)
+    
+    with connection.cursor() as cursor:
+    
+        cursor.execute("SELECT COUNT(*) FROM plans")
+        count = cursor.fetchone()[0]
+        
+        if count >= 2:
+            print(f"Found {count} plans, skipping")
+            sys.exit(0)
+        
+        
+        print("Inserting plans...")
+        cursor.execute("""
+            INSERT INTO plans (slug, name, description, base_price)
+            VALUES ('basic', 'Basic', 'Basic OHS manual', 99.99)
+        """)
+        
+        cursor.execute("""
+            INSERT INTO plans (slug, name, description, base_price)
+            VALUES ('comprehensive', 'Comprehensive', 'Comprehensive OHS manual', 199.99)
+        """)
+        
+        connection.commit()
+        
+        print("Plans inserted successfully")
+        
+    
+        cursor.execute("SELECT id, slug, name, base_price FROM plans")
+        plans = cursor.fetchall()
+        print(f"\nPlans in database:")
+        for plan in plans:
+            print(f"  ID {plan[0]}: '{plan[1]}' / '{plan[2]}' - ${plan[3]}")
+            
+except pymysql.Error as e:
+    print(f"MySQL error: {e}")
+except Exception as e:
+    print(f"Error: {e}")
+    import traceback
+    traceback.print_exc()
+finally:
+    if 'connection' in locals():
+        connection.close()
