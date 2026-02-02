@@ -1,5 +1,3 @@
-import stripe
-
 from app.services.payment_service import BasePaymentProvider
 from app.schemas.payment import (
     PaymentIntentResponse,
@@ -7,6 +5,7 @@ from app.schemas.payment import (
     StripeWebhookEvent,
     StripeWebhookEventType,
 )
+import json
 
 
 class StripePaymentProvider(BasePaymentProvider):
@@ -33,20 +32,89 @@ class StripePaymentProvider(BasePaymentProvider):
         if not currency:
             raise ValueError("currency is required")
         
-        stripe.api_key = self.api_key
-        
-        intent = stripe.PaymentIntent.create(
-            amount=amount_cents,
-            currency=currency.lower(),
-            metadata={"order_id": str(order_id)},
-        )
-        
-        return PaymentIntentResponse(
-            id=intent.id,
-            client_secret=intent.client_secret,
-            status=StripePaymentIntentStatus(intent.status),
-            amount_cents=intent.amount,
-            currency=intent.currency.upper(),
+        import stripe as _stripe
+
+        _stripe.api_key = self.api_key
+
+        try:
+            intent = _stripe.PaymentIntent.create(
+                amount=amount_cents,
+                currency=currency.lower(),
+                metadata={"order_id": str(order_id)},
+            )
+        except Exception as exc:
+            raise RuntimeError("failed to create payment intent") from exc
+
+        intent_id = self._safe_get(intent, "id")
+        client_secret = self._safe_get(intent, "client_secret")
+        status = self._safe_get(intent, "status")
+        amount_val = self._safe_get(intent, "amount")
+        try:
+            amount_cents_ret = int(amount_val) if amount_val is not None else 0
+        except (TypeError, ValueError):
+            amount_cents_ret = 0
+
+        intent_currency = (self._safe_get(intent, "currency") or "").upper()
+
+        return {
+            "id": intent_id,
+            "client_secret": client_secret,
+            "status": status,
+            "amount_cents": amount_cents_ret,
+            "currency": intent_currency,
+        }
+
+    def _safe_get(self, obj, *keys, default=None):
+        """Safe nested getter that works for dicts or SDK objects.
+
+        Usage:
+            self._safe_get(event, "data", "object", "id")
+        """
+        try:
+            cur = obj
+            if len(keys) == 1:
+                k = keys[0]
+                if isinstance(cur, dict):
+                    return cur.get(k, default)
+                return getattr(cur, k, default)
+
+            for k in keys:
+                if cur is None:
+                    return default
+                if isinstance(cur, dict):
+                    cur = cur.get(k)
+                else:
+                    cur = getattr(cur, k, None)
+            return cur if cur is not None else default
+        except Exception:
+            return default
+
+    def _normalize_event(self, event) -> StripeWebhookEvent:
+        """Normalize a raw Stripe SDK event (dict or object) into our
+        StripeWebhookEvent model.
+        """
+        raw_type = self._safe_get(event, "type")
+        try:
+            event_type = StripeWebhookEventType(raw_type)
+        except Exception:
+            event_type = None
+
+        obj = self._safe_get(event, "data", "object")
+        if obj is None:
+            obj = self._safe_get(event, "data", "object", default={})
+
+        payment_intent_id = self._safe_get(obj, "id") or self._safe_get(event, "data", "object", "id")
+        metadata_raw = self._safe_get(obj, "metadata") or {}
+
+        metadata: dict[str, str] = {}
+        if isinstance(metadata_raw, dict):
+            for k, v in metadata_raw.items():
+                metadata[str(k)] = str(v) if v is not None else ""
+
+        return StripeWebhookEvent(
+            event_type=event_type or StripeWebhookEventType.PAYMENT_INTENT_SUCCEEDED,
+            payment_intent_id=payment_intent_id or "",
+            metadata=metadata,
         )
 
     def verify_webhook_signature(
@@ -63,17 +131,15 @@ class StripePaymentProvider(BasePaymentProvider):
         if not self.webhook_secret:
             raise ValueError("webhook_secret is not configured")
         
-        event = stripe.Webhook.construct_event(
-            payload,
-            signature,
-            self.webhook_secret
-        )
-        
-        event_type = StripeWebhookEventType(event["type"])
-        payment_intent = event["data"]["object"]
-        
-        return StripeWebhookEvent(
-            event_type=event_type,
-            payment_intent_id=payment_intent["id"],
-            metadata=payment_intent.get("metadata", {}),
-        )
+        import stripe as _stripe
+
+        try:
+            event = _stripe.Webhook.construct_event(
+                payload,
+                signature,
+                self.webhook_secret
+            )
+        except Exception as exc:
+            raise ValueError("invalid webhook signature") from exc
+
+        return self._normalize_event(event)

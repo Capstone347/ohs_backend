@@ -19,10 +19,11 @@ class ErrorCode(Enum):
 
 
 class ErrorResponse(BaseModel):
-    error: "ErrorDetail"
-
-
-class ErrorDetail(BaseModel):
-    code: ErrorCode = Field(..., example=ErrorCode.VALIDATION_ERROR)
+    code: str = Field(..., example="VALIDATION_ERROR")
     message: str = Field(..., example="One or more fields failed validation")
     details: dict[str, str] | None = Field(None, example={"company_name": "This field is required"})
+
+
+class SuccessResponse(BaseModel):
+    ok: bool = True
+    data: dict | list | None = None

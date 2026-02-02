@@ -10,7 +10,7 @@ from .payment import (
     StripeWebhookEventType,
 )
 from .legal import LegalAcknowledgment
-from .responses import ErrorResponse, ErrorDetail, ErrorCode
+from .responses import ErrorResponse, SuccessResponse, ErrorCode
 from .email import OrderConfirmationContext, DocumentDeliveryContext
 
 __all__ = [
@@ -27,7 +27,7 @@ __all__ = [
 	"StripeWebhookEventType",
 	"LegalAcknowledgment",
 	"ErrorResponse",
-	"ErrorDetail",
+	"SuccessResponse",
 	"ErrorCode",
 	"OrderConfirmationContext",
 	"DocumentDeliveryContext",
