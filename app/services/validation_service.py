@@ -38,7 +38,7 @@ class ValidationService:
     def __init__(self, max_logo_size_mb: int = 5, allowed_extensions: list[str] | None = None):
         self.max_logo_size_mb = max_logo_size_mb
         self.max_logo_size_bytes = max_logo_size_mb * 1024 * 1024
-        self.allowed_extensions = allowed_extensions or [".png", ".jpg", ".jpeg", ".svg"]
+        self.allowed_extensions = allowed_extensions or [".png", ".jpg", ".jpeg"]
 
     def validate_naics_code(self, naics_code: str) -> bool:
         if not naics_code:
@@ -146,11 +146,6 @@ class ValidationService:
         self.validate_file_extension(filename)
         
         extension = Path(filename).suffix.lower()
-        
-        if extension == ".svg":
-            if not file_content.startswith(b'<svg') and b'<svg' not in file_content[:1000]:
-                raise InvalidFileException("Invalid SVG file format")
-            return True
         
         if extension in [".png", ".jpg", ".jpeg"]:
             try:

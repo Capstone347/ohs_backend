@@ -152,15 +152,6 @@ class TestValidationService:
         with pytest.raises(UnsupportedFileTypeException, match="not supported"):
             validation_service.validate_file_extension("script.exe")
 
-    def test_validate_image_file_svg_valid(self, validation_service):
-        svg_content = b'<svg xmlns="http://www.w3.org/2000/svg"></svg>'
-        assert validation_service.validate_image_file(svg_content, "logo.svg") is True
-
-    def test_validate_image_file_svg_invalid_fails(self, validation_service):
-        invalid_svg = b"not an svg file"
-        with pytest.raises(InvalidFileException, match="Invalid SVG"):
-            validation_service.validate_image_file(invalid_svg, "logo.svg")
-
     def test_validate_company_name_valid(self, validation_service):
         assert validation_service.validate_company_name("Test Company") is True
         assert validation_service.validate_company_name("ABC Corp.") is True

@@ -8,6 +8,7 @@ from app.database import Base
 
 
 class EmailStatus(Enum):
+    PENDING = "pending"
     SENT = "sent"
     DELIVERED = "delivered"
     FAILED = "failed"
@@ -20,7 +21,7 @@ class EmailLog(Base):
     order_id = Column(Integer, ForeignKey("orders.id", ondelete="CASCADE", onupdate="CASCADE"), nullable=False, index=True)
     recipient_email = Column(String(255), ForeignKey("users.email", ondelete="NO ACTION", onupdate="NO ACTION"), nullable=False, index=True)
     subject = Column(String(255), nullable=False)
-    status = Column(SQLEnum(EmailStatus), nullable=False, default=EmailStatus.SENT)
+    status = Column(SQLEnum(EmailStatus), nullable=False, default=EmailStatus.PENDING)
     sent_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     failure_reason = Column(Text, nullable=True)
 
