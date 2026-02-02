@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     smtp_password: str = Field(...)
     smtp_from_email: str = Field(...)
     smtp_from_name: str = Field(default="OHS Remote")
+    smtp_use_ssl: bool = Field(default=False)
+    smtp_use_starttls: bool = Field(default=True)
     
     stripe_api_key: str = Field(...)
     stripe_webhook_secret: str = Field(...)

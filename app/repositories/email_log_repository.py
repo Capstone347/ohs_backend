@@ -47,7 +47,7 @@ class EmailLogRepository(BaseRepository[EmailLog]):
         order_id: int,
         recipient_email: str,
         subject: str,
-        status: EmailStatus = EmailStatus.SENT,
+        status: EmailStatus = EmailStatus.PENDING,
         failure_reason: str | None = None
     ) -> EmailLog:
         if not order_id:
