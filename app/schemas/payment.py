@@ -1,5 +1,11 @@
 from pydantic import BaseModel, Field
-from typing import Literal
+from enum import Enum
+
+
+class StripePaymentIntentStatus(Enum):
+    REQUIRES_PAYMENT_METHOD = "requires_payment_method"
+    REQUIRES_CONFIRMATION = "requires_confirmation"
+    SUCCEEDED = "succeeded"
 
 
 class PaymentCreate(BaseModel):
@@ -11,4 +17,4 @@ class PaymentCreate(BaseModel):
 class PaymentIntentResponse(BaseModel):
     id: str = Field(..., example="pi_1Kxyz123456")
     client_secret: str = Field(..., example="secret_ABC123")
-    status: Literal["requires_payment_method", "requires_confirmation", "succeeded"] = Field(..., example="requires_payment_method")
+    status: StripePaymentIntentStatus = Field(..., example=StripePaymentIntentStatus.REQUIRES_PAYMENT_METHOD)

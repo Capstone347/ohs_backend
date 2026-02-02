@@ -11,4 +11,4 @@ class DocumentResponse(BaseModel):
     created_at: datetime = Field(..., example="2026-02-02T12:00:00Z")
 
     class Config:
-        orm_mode = True
+        from_attributes = True
