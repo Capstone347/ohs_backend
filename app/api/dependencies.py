@@ -5,6 +5,7 @@ from app.database.session import get_db
 from app.repositories.order_repository import OrderRepository
 from app.repositories.order_status_repository import OrderStatusRepository
 from app.repositories.company_repository import CompanyRepository
+from app.repositories.company_logo_repository import CompanyLogoRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.plan_repository import PlanRepository
 from app.repositories.document_repository import DocumentRepository
@@ -28,6 +29,10 @@ def get_order_status_repository(db: Session = Depends(get_db)) -> OrderStatusRep
 
 def get_company_repository(db: Session = Depends(get_db)) -> CompanyRepository:
     return CompanyRepository(db)
+
+
+def get_company_logo_repository(db: Session = Depends(get_db)) -> CompanyLogoRepository:
+    return CompanyLogoRepository(db)
 
 
 def get_user_repository(db: Session = Depends(get_db)) -> UserRepository:
@@ -70,6 +75,8 @@ def get_order_service(
         plan_repo,
         validation_service,
     )
+
+
 
 
 def get_document_generation_service(
