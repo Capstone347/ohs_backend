@@ -3,6 +3,7 @@ pytest
 pytest-asyncio
 pytest-cov
 httpx
+requests
 
 # Code Quality
 ruff

@@ -1,24 +1,31 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
+from app.api.middleware import RequestLoggingMiddleware, register_exception_handlers
 from app.api.v1.router import api_router
 from app.config import settings
-from app.core.exceptions import OHSRemoteException
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Create directories
+    logger.info("Application startup", environment=settings.environment.value)
+    
     settings.uploads_dir.mkdir(parents=True, exist_ok=True)
     settings.logos_dir.mkdir(parents=True, exist_ok=True)
     settings.documents_dir.mkdir(parents=True, exist_ok=True)
     settings.generated_documents_dir.mkdir(parents=True, exist_ok=True)
     settings.preview_documents_dir.mkdir(parents=True, exist_ok=True)
+    
+    logger.info("Required directories created successfully")
+    
     yield
-    # Shutdown: Clean up resources (if needed)
+    
+    logger.info("Application shutdown")
 
 
 app = FastAPI(
@@ -35,34 +42,12 @@ app.add_middleware(
     allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
+    expose_headers=["X-Request-ID"]
 )
 
+app.add_middleware(RequestLoggingMiddleware)
 
-@app.exception_handler(OHSRemoteException)
-async def ohs_remote_exception_handler(request: Request, exc: OHSRemoteException) -> JSONResponse:
-    return JSONResponse(
-        status_code=400,
-        content={
-            "error": {
-                "code": exc.__class__.__name__,
-                "message": str(exc)
-            }
-        }
-    )
-
-
-@app.exception_handler(Exception)
-async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    return JSONResponse(
-        status_code=500,
-        content={
-            "error": {
-                "code": "INTERNAL_SERVER_ERROR",
-                "message": "An unexpected error occurred"
-            }
-        }
-    )
-
+register_exception_handlers(app)
 
 app.include_router(api_router, prefix="/api/v1")

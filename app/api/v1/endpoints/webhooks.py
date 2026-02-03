@@ -8,10 +8,12 @@ from app.api.dependencies import (
     get_email_template_renderer,
     get_email_service,
     get_document_repository,
+    get_document_service,
 )
 from app.repositories.order_status_repository import OrderStatusRepository
 from app.repositories.order_repository import OrderRepository
 from app.repositories.document_repository import DocumentRepository
+from app.services.document_service import DocumentService
 from app.schemas.payment import StripeWebhookEvent, StripeWebhookEventType
 from app.schemas.email import DocumentDeliveryContext
 from app.services.payment_service import PaymentService
@@ -32,6 +34,7 @@ async def handle_payment_webhook(
     payment_service: PaymentService = Depends(get_payment_service),
     order_repo: OrderRepository = Depends(get_order_repository),
     document_repo: DocumentRepository = Depends(get_document_repository),
+    document_service: DocumentService = Depends(get_document_service),
     renderer: EmailTemplateRenderer = Depends(get_email_template_renderer),
     email_service: EmailService = Depends(get_email_service),
 ) -> dict:
@@ -87,11 +90,21 @@ async def handle_payment_webhook(
     recipient = order.user.email if order and getattr(order, "user", None) else ""
     
     if recipient:
-        # Get document with access token
+        # Check if document exists, if not generate it
         documents = document_repo.get_documents_by_order_id(order_id)
-        access_token = documents[0].access_token if documents else ""
         
-        download_link = f"{settings.app_base_url}/api/v1/documents/{order_id}/download"
+        if not documents:
+            # Generate document after payment
+            try:
+                document = document_service.generate_document_for_order(order_id)
+                documents = [document]
+            except Exception as e:
+                return {"status": "ok", "warning": f"Payment marked but document generation failed: {str(e)}"}
+        
+        access_token = documents[0].access_token if documents else ""
+        document_id = documents[0].document_id if documents else order_id
+        
+        download_link = f"{settings.app_base_url}/api/v1/documents/{document_id}/download"
         if access_token:
             download_link += f"?token={access_token}"
         
