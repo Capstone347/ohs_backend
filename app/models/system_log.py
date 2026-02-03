@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 from sqlalchemy import Column, DateTime, BigInteger, Integer, String, Text, JSON, Enum as SQLEnum, ForeignKey
@@ -23,7 +23,7 @@ class SystemLog(Base):
     source = Column(String(100), nullable=False)
     message = Column(Text, nullable=False)
     log_metadata = Column(JSON, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="system_logs")
     order = relationship("Order", back_populates="system_logs")

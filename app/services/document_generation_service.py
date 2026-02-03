@@ -1,5 +1,5 @@
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from docx import Document
 import secrets
 
@@ -89,7 +89,7 @@ class DocumentGenerationService:
 
     def _create_document_record(self, order_id: int, file_path: Path) -> DocumentModel:
         access_token = secrets.token_hex(32)
-        token_expires_at = datetime.utcnow() + timedelta(days=30)
+        token_expires_at = datetime.now(timezone.utc) + timedelta(days=30)
         
         document = DocumentModel(
             order_id=order_id,
@@ -97,7 +97,7 @@ class DocumentGenerationService:
             file_format=DocumentFormat.DOCX,
             access_token=access_token,
             token_expires_at=token_expires_at,
-            generated_at=datetime.utcnow(),
+            generated_at=datetime.now(timezone.utc),
         )
         
         created_document = self.document_repository.create(document)

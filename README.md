@@ -660,7 +660,7 @@ mypy app/
 ```python
 # Standard library
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Third-party
 from fastapi import APIRouter

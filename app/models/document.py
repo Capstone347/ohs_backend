@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 from sqlalchemy import Column, DateTime, Integer, String, CHAR, JSON, Enum as SQLEnum, ForeignKey
@@ -20,7 +20,7 @@ class Document(Base):
     content = Column(JSON, nullable=True)
     access_token = Column(CHAR(64), nullable=False, unique=True)
     token_expires_at = Column(DateTime, nullable=False)
-    generated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    generated_at = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
     downloaded_count = Column(Integer, nullable=False, default=0)
     last_downloaded_at = Column(DateTime, nullable=True)
     file_path = Column(String(500), nullable=True)

@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
@@ -84,7 +84,7 @@ class TestUserRepository:
             full_name="Test User"
         )
         
-        login_time = datetime.utcnow()
+        login_time = datetime.now(timezone.utc)
         updated_user = user_repo.update_last_login(user.id, login_time)
         
         assert updated_user.last_login == login_time
@@ -96,7 +96,7 @@ class TestUserRepository:
         )
         
         otp_token = "123456"
-        otp_expires = datetime.utcnow()
+        otp_expires = datetime.now(timezone.utc)
         
         updated_user = user_repo.set_otp_token(user.id, otp_token, otp_expires)
         
@@ -109,7 +109,7 @@ class TestUserRepository:
             full_name="Test User"
         )
         
-        otp_expires = datetime.utcnow()
+        otp_expires = datetime.now(timezone.utc)
         user_repo.set_otp_token(user.id, "123456", otp_expires)
         
         updated_user = user_repo.clear_otp_token(user.id)

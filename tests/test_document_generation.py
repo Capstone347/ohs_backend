@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 from PIL import Image
 import io
 
@@ -109,7 +109,7 @@ def sample_order_with_logo(
         plan_id=basic_plan.id,
         jurisdiction="BC",
         total_amount=299.00,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
     db_session.add(order)
     db_session.commit()
@@ -118,7 +118,7 @@ def sample_order_with_logo(
     company_logo = CompanyLogo(
         order_id=order.id,
         file_path=str(test_logo),
-        uploaded_at=datetime.utcnow(),
+        uploaded_at=datetime.now(timezone.utc),
     )
     db_session.add(company_logo)
     db_session.commit()
@@ -139,7 +139,7 @@ def sample_order_no_logo(
         plan_id=comprehensive_plan.id,
         jurisdiction="ON",
         total_amount=599.00,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
     db_session.add(order)
     db_session.commit()
@@ -245,7 +245,7 @@ class TestDocumentGeneration:
         assert result.document_id is not None
         assert result.order_id == sample_order_with_logo.id
         assert result.generated_at is not None
-        assert result.token_expires_at > datetime.utcnow()
+        assert result.token_expires_at > datetime.now(timezone.utc)
         assert result.downloaded_count == 0
         assert result.last_downloaded_at is None
     
@@ -406,7 +406,7 @@ class TestCompleteWorkflow:
         logo = CompanyLogo(
             order_id=basic_order.id,
             file_path=str(test_logo),
-            uploaded_at=datetime.utcnow(),
+            uploaded_at=datetime.now(timezone.utc),
         )
         db_session.add(logo)
         db_session.commit()
@@ -430,7 +430,7 @@ class TestCompleteWorkflow:
         logo2 = CompanyLogo(
             order_id=comprehensive_order.id,
             file_path=str(test_logo),
-            uploaded_at=datetime.utcnow(),
+            uploaded_at=datetime.now(timezone.utc),
         )
         db_session.add(logo2)
         db_session.commit()

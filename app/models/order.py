@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, Integer, String, Numeric, Boolean, Text, ForeignKey
 from sqlalchemy.orm import relationship
@@ -15,7 +15,7 @@ class Order(Base):
     company_id = Column(Integer, ForeignKey("company.id", ondelete="NO ACTION", onupdate="NO ACTION"), nullable=False, index=True)
     jurisdiction = Column(String(100), nullable=False)
     total_amount = Column(Numeric(10, 2), nullable=False)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
     completed_at = Column(DateTime, nullable=True)
     is_industry_specific = Column(Boolean, nullable=False, default=False)
     admin_notes = Column(Text, nullable=True)

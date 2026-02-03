@@ -1,6 +1,5 @@
 import pytest
 from decimal import Decimal
-from datetime import datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 

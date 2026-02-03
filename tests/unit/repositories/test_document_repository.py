@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
@@ -32,7 +32,7 @@ def sample_order(test_db):
         email="test@example.com",
         full_name="Test User",
         role=UserRole.CUSTOMER,
-        created_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc)
     )
     test_db.add(user)
     test_db.commit()
@@ -46,7 +46,7 @@ def sample_order(test_db):
         company_id=company.id,
         jurisdiction="Ontario",
         total_amount=100.00,
-        created_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc)
     )
     test_db.add(order)
     test_db.commit()
@@ -56,7 +56,7 @@ def sample_order(test_db):
 
 class TestDocumentRepository:
     def test_create_document(self, document_repo, sample_order):
-        token_expires = datetime.utcnow() + timedelta(days=7)
+        token_expires = datetime.now(timezone.utc) + timedelta(days=7)
         
         document = document_repo.create_document(
             order_id=sample_order.id,
@@ -74,7 +74,7 @@ class TestDocumentRepository:
         assert document.file_format == DocumentFormat.DOCX
 
     def test_get_by_access_token(self, document_repo, sample_order):
-        token_expires = datetime.utcnow() + timedelta(days=7)
+        token_expires = datetime.now(timezone.utc) + timedelta(days=7)
         
         created_doc = document_repo.create_document(
             order_id=sample_order.id,
@@ -93,7 +93,7 @@ class TestDocumentRepository:
         assert result is None
 
     def test_get_documents_by_order_id(self, document_repo, sample_order):
-        token_expires = datetime.utcnow() + timedelta(days=7)
+        token_expires = datetime.now(timezone.utc) + timedelta(days=7)
         
         document_repo.create_document(
             order_id=sample_order.id,
@@ -111,7 +111,7 @@ class TestDocumentRepository:
         assert len(documents) == 2
 
     def test_increment_download_count(self, document_repo, sample_order):
-        token_expires = datetime.utcnow() + timedelta(days=7)
+        token_expires = datetime.now(timezone.utc) + timedelta(days=7)
         
         document = document_repo.create_document(
             order_id=sample_order.id,
@@ -128,7 +128,7 @@ class TestDocumentRepository:
         assert updated_doc.last_downloaded_at is not None
 
     def test_update_file_path(self, document_repo, sample_order):
-        token_expires = datetime.utcnow() + timedelta(days=7)
+        token_expires = datetime.now(timezone.utc) + timedelta(days=7)
         
         document = document_repo.create_document(
             order_id=sample_order.id,
@@ -145,7 +145,7 @@ class TestDocumentRepository:
         assert updated_doc.file_path == "/new/path.docx"
 
     def test_update_content(self, document_repo, sample_order):
-        token_expires = datetime.utcnow() + timedelta(days=7)
+        token_expires = datetime.now(timezone.utc) + timedelta(days=7)
         
         document = document_repo.create_document(
             order_id=sample_order.id,
@@ -159,7 +159,7 @@ class TestDocumentRepository:
         assert updated_doc.content == new_content
 
     def test_is_token_valid_returns_true_for_valid_token(self, document_repo, sample_order):
-        token_expires = datetime.utcnow() + timedelta(days=7)
+        token_expires = datetime.now(timezone.utc) + timedelta(days=7)
         
         document_repo.create_document(
             order_id=sample_order.id,
@@ -170,7 +170,7 @@ class TestDocumentRepository:
         assert document_repo.is_token_valid("valid_token") is True
 
     def test_is_token_valid_returns_false_for_expired_token(self, document_repo, sample_order):
-        token_expires = datetime.utcnow() - timedelta(days=1)
+        token_expires = datetime.now(timezone.utc) - timedelta(days=1)
         
         document_repo.create_document(
             order_id=sample_order.id,
@@ -184,8 +184,8 @@ class TestDocumentRepository:
         assert document_repo.is_token_valid("nonexistent") is False
 
     def test_get_expired_documents(self, document_repo, sample_order):
-        expired_time = datetime.utcnow() - timedelta(days=1)
-        valid_time = datetime.utcnow() + timedelta(days=7)
+        expired_time = datetime.now(timezone.utc) - timedelta(days=1)
+        valid_time = datetime.now(timezone.utc) + timedelta(days=7)
         
         document_repo.create_document(
             order_id=sample_order.id,
@@ -204,7 +204,7 @@ class TestDocumentRepository:
         assert expired_docs[0].access_token == "expired"
 
     def test_get_documents_by_format(self, document_repo, sample_order):
-        token_expires = datetime.utcnow() + timedelta(days=7)
+        token_expires = datetime.now(timezone.utc) + timedelta(days=7)
         
         document_repo.create_document(
             order_id=sample_order.id,
@@ -230,7 +230,7 @@ class TestDocumentRepository:
             document_repo.create_document(
                 order_id=None,
                 access_token="token",
-                token_expires_at=datetime.utcnow()
+                token_expires_at=datetime.now(timezone.utc)
             )
 
     def test_create_document_without_access_token_fails(self, document_repo, sample_order):
@@ -238,7 +238,7 @@ class TestDocumentRepository:
             document_repo.create_document(
                 order_id=sample_order.id,
                 access_token="",
-                token_expires_at=datetime.utcnow()
+                token_expires_at=datetime.now(timezone.utc)
             )
 
     def test_get_by_id_or_fail_raises_when_not_found(self, document_repo):

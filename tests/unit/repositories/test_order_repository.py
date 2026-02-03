@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
@@ -33,7 +33,7 @@ def sample_user(test_db):
         email="test@example.com",
         full_name="Test User",
         role=UserRole.CUSTOMER,
-        created_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc)
     )
     test_db.add(user)
     test_db.commit()
@@ -72,7 +72,7 @@ def sample_order(test_db, sample_user, sample_company, sample_plan):
         plan_id=sample_plan.id,
         jurisdiction="Ontario",
         total_amount=100.00,
-        created_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc)
     )
     test_db.add(order)
     test_db.commit()
@@ -97,7 +97,7 @@ class TestOrderRepository:
             plan_id=sample_plan.id,
             jurisdiction="Ontario",
             total_amount=150.00,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         
         created_order = order_repo.create(order)
@@ -144,7 +144,7 @@ class TestOrderRepository:
         assert orders[0].id == sample_order.id
 
     def test_update_completed_at(self, order_repo, sample_order):
-        completed_time = datetime.utcnow()
+        completed_time = datetime.now(timezone.utc)
         updated_order = order_repo.update_completed_at(sample_order.id, completed_time)
         
         assert updated_order.completed_at == completed_time
@@ -170,7 +170,7 @@ class TestOrderRepository:
             jurisdiction="Ontario",
             total_amount=200.00,
             is_industry_specific=True,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         order_repo.create(industry_order)
         
@@ -190,7 +190,7 @@ class TestOrderRepository:
         order_repo, 
         sample_order
     ):
-        completed_time = datetime.utcnow()
+        completed_time = datetime.now(timezone.utc)
         order_repo.update_completed_at(sample_order.id, completed_time)
         
         start_date = datetime(2020, 1, 1)

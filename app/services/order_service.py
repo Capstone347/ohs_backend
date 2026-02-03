@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from app.models.order import Order
@@ -73,7 +73,7 @@ class OrderService:
             total_amount=total_amount,
             is_industry_specific=is_industry_specific,
             admin_notes=admin_notes,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
         
         created_order = self.order_repo.create(order)
@@ -183,7 +183,7 @@ class OrderService:
         
         self.order_status_repo.mark_as_available(order_id)
         
-        completed_time = datetime.utcnow()
+        completed_time = datetime.now(timezone.utc)
         self.order_repo.update_completed_at(order_id, completed_time)
         
         return self.order_repo.get_by_id_or_fail(order_id)

@@ -1,5 +1,5 @@
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 import shutil
 
 from app.config import settings
@@ -51,7 +51,7 @@ class FileStorageService:
         if not extension:
             raise FileSaveException("File must have an extension")
         
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         safe_filename = f"order_{order_id}_{timestamp}{extension}"
         logo_path = self.logos_dir / safe_filename
         
@@ -82,7 +82,7 @@ class FileStorageService:
         if not order_id:
             raise FileSaveException("order_id is required")
         
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         filename = f"manual_order_{order_id}_{timestamp}{extension}"
         document_path = self.generated_documents_dir / filename
         
@@ -99,7 +99,7 @@ class FileStorageService:
         if not order_id:
             raise FileSaveException("order_id is required")
         
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         filename = f"preview_order_{order_id}_{timestamp}{extension}"
         preview_path = self.preview_documents_dir / filename
         
@@ -160,7 +160,7 @@ class FileStorageService:
         if days_old < 1:
             raise ValueError("days_old must be at least 1")
         
-        cutoff_time = datetime.utcnow().timestamp() - (days_old * 24 * 3600)
+        cutoff_time = datetime.now(timezone.utc).timestamp() - (days_old * 24 * 3600)
         deleted_count = 0
         
         for preview_file in self.preview_documents_dir.glob("preview_order_*"):
