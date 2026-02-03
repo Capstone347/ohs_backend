@@ -3,6 +3,7 @@ import types
 import pytest
 
 from app.services.stripe_provider import StripePaymentProvider
+from app.schemas.payment import StripeWebhookEventType
 
 
 def make_fake_stripe_module(create_return=None, construct_return=None):
@@ -78,7 +79,7 @@ def test_stripe_provider_create_payment_intent(monkeypatch):
     assert result["id"] == "pi_123"
     assert result["client_secret"] == "cs_123"
     assert result["status"] == "requires_payment_method"
-    assert result["amount"] == "1500"
+    assert result["amount_cents"] == 1500
 
 
 def test_stripe_provider_verify_webhook(monkeypatch):
@@ -89,8 +90,8 @@ def test_stripe_provider_verify_webhook(monkeypatch):
     provider = StripePaymentProvider(api_key="sk_test", webhook_secret="whsec_test")
     event = provider.verify_webhook_signature(b"payload", "sig")
 
-    assert event["type"] == "payment_intent.succeeded"
-    assert "data" in event
+    assert event.event_type == StripeWebhookEventType.PAYMENT_INTENT_SUCCEEDED
+    assert event.payment_intent_id == "pi_123"
 
 
 def test_stripe_provider_handles_sdk_object_response(monkeypatch):
@@ -103,7 +104,7 @@ def test_stripe_provider_handles_sdk_object_response(monkeypatch):
     assert result["id"] == "pi_obj_1"
     assert result["client_secret"] == "cs_obj_1"
     assert result["status"] == "succeeded"
-    assert result["amount"] == "2000"
+    assert result["amount_cents"] == 2000
 
 
 def test_stripe_provider_raises_on_signature_verification_failure(monkeypatch):

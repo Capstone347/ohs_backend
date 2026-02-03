@@ -22,8 +22,9 @@ class EmailService:
         self.smtp_password = smtp_settings.smtp_password
         self.from_email = smtp_settings.smtp_from_email
         self.from_name = smtp_settings.smtp_from_name
-        self.smtp_use_ssl = smtp_settings.smtp_use_ssl
-        self.smtp_use_starttls = smtp_settings.smtp_use_starttls
+        # Accept smtp settings objects that may omit optional flags (tests use SimpleNamespace)
+        self.smtp_use_ssl = getattr(smtp_settings, "smtp_use_ssl", False)
+        self.smtp_use_starttls = getattr(smtp_settings, "smtp_use_starttls", True)
         self.logger = logging.getLogger(__name__)
 
     def send_email(

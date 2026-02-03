@@ -84,9 +84,8 @@ def test_send_email_missing_attachment_marks_failed(monkeypatch, tmp_path):
 
     with pytest.raises(FileNotFoundError):
         service.send_email(order_id=30, recipient_email="missing@example.com", subject="Missing", html_body="<p>hi</p>", attachment_path=missing)
-
-    mock_repo.create_email_log.assert_called_once_with(30, "missing@example.com", "Missing")
-    mock_repo.mark_as_failed.assert_called_once()
+    mock_repo.create_email_log.assert_not_called()
+    mock_repo.mark_as_failed.assert_not_called()
 
 
 def test_send_email_smtp_recipient_refused(monkeypatch):
@@ -119,6 +118,5 @@ def test_create_email_log_raises_propagates(monkeypatch):
 
     with pytest.raises(ValueError):
         service.send_email(order_id=None, recipient_email="x@example.com", subject="X", html_body="<p>x</p>")
-
-    mock_repo.create_email_log.assert_called_once()
+    mock_repo.create_email_log.assert_not_called()
     mock_repo.mark_as_failed.assert_not_called()

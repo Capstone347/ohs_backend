@@ -15,7 +15,7 @@ from .legal import (
     LegalAcknowledgmentRequest,
     LegalAcknowledgmentResponse,
 )
-from .responses import ErrorResponse, ErrorDetail, ErrorCode
+from .responses import ErrorResponse, ErrorDetail, SuccessResponse, ErrorCode
 from .email import OrderConfirmationContext, DocumentDeliveryContext
 
 __all__ = [
@@ -38,6 +38,7 @@ __all__ = [
 	"LegalAcknowledgmentResponse",
 	"ErrorResponse",
 	"ErrorDetail",
+	"SuccessResponse",
 	"ErrorCode",
 	"OrderConfirmationContext",
 	"DocumentDeliveryContext",
