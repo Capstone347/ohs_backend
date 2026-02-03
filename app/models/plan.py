@@ -19,8 +19,8 @@ class Plan(Base):
     __tablename__ = "plans"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    slug = Column(SQLEnum(PlanSlug), nullable=False, unique=True)
-    name = Column(SQLEnum(PlanName), nullable=False)
+    slug = Column(String(50), nullable=False, unique=True)
+    name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
     base_price = Column(Numeric(10, 2), nullable=False)
 

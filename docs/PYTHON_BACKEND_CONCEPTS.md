@@ -405,7 +405,7 @@ This creates the `orders` table with those columns.
 order = Order(
     user_email="john@example.com",
     status="pending",
-    created_at=datetime.utcnow()
+    created_at=datetime.now(timezone.utc)
 )
 db.add(order)
 db.commit()

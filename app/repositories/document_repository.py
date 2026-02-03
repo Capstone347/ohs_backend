@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.document import Document, DocumentFormat
@@ -82,7 +82,7 @@ class DocumentRepository(BaseRepository[Document]):
             file_path=file_path,
             file_format=file_format,
             content=content,
-            generated_at=datetime.utcnow()
+            generated_at=datetime.now(timezone.utc)
         )
         return self.create(document)
 
@@ -92,7 +92,7 @@ class DocumentRepository(BaseRepository[Document]):
         
         document = self.get_by_id_or_fail(document_id)
         document.downloaded_count += 1
-        document.last_downloaded_at = datetime.utcnow()
+        document.last_downloaded_at = datetime.now(timezone.utc)
         return self.update(document)
 
     def update_file_path(self, document_id: int, file_path: str) -> Document:
@@ -126,7 +126,7 @@ class DocumentRepository(BaseRepository[Document]):
         if not document:
             return False
         
-        if datetime.utcnow() > document.token_expires_at:
+        if datetime.now(timezone.utc) > document.token_expires_at:
             return False
         
         return True
@@ -134,7 +134,7 @@ class DocumentRepository(BaseRepository[Document]):
     def get_expired_documents(self) -> list[Document]:
         return (
             self.db.query(Document)
-            .filter(Document.token_expires_at < datetime.utcnow())
+            .filter(Document.token_expires_at < datetime.now(timezone.utc))
             .all()
         )
 
