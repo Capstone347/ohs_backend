@@ -63,3 +63,7 @@ class FileSaveException(FileStorageServiceException):
 
 class FileNotFoundServiceException(FileStorageServiceException):
     pass
+
+
+class DocumentGenerationServiceException(ServiceException):
+    pass
