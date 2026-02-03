@@ -1,0 +1,234 @@
+from pathlib import Path
+from decimal import Decimal
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from sqlalchemy.orm import Session
+
+from app.api.dependencies import (
+    get_order_service,
+    get_company_repository,
+    get_company_logo_repository,
+    get_user_repository,
+    get_plan_repository,
+    get_file_storage_service,
+    get_db,
+)
+from app.repositories.base_repository import RecordNotFoundError
+from app.schemas.order import (
+    OrderCreateRequest,
+    OrderCreatedResponse,
+    OrderSummaryResponse,
+    CompanyDetailsResponse,
+)
+from app.services.order_service import OrderService
+from app.services.file_storage_service import FileStorageService
+from app.services.exceptions import (
+    FileStorageServiceException,
+    FileSaveException,
+)
+from app.repositories.company_repository import CompanyRepository
+from app.repositories.company_logo_repository import CompanyLogoRepository
+from app.repositories.user_repository import UserRepository
+from app.repositories.plan_repository import PlanRepository
+from app.models.company import Company
+from app.models.user import User, UserRole
+
+router = APIRouter()
+
+ALLOWED_LOGO_EXTENSIONS = {".png", ".jpg", ".jpeg", ".svg"}
+MAX_LOGO_SIZE_MB = 5
+
+
+@router.post(
+    "",
+    response_model=OrderCreatedResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new order",
+)
+def create_order(
+    request: OrderCreateRequest,
+    order_service: OrderService = Depends(get_order_service),
+    company_repo: CompanyRepository = Depends(get_company_repository),
+    user_repo: UserRepository = Depends(get_user_repository),
+    plan_repo: PlanRepository = Depends(get_plan_repository),
+    db: Session = Depends(get_db),
+) -> OrderCreatedResponse:
+    plan = plan_repo.get_by_id(request.plan_id)
+    if not plan:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Plan with id {request.plan_id} not found"
+        )
+    
+    user = user_repo.get_by_email(request.user_email)
+    
+    if not user:
+        user = User(
+            email=request.user_email,
+            full_name=request.full_name,
+            role=UserRole.CUSTOMER,
+        )
+        user = user_repo.create(user)
+    
+    company = company_repo.get_by_name(request.full_name)
+    if not company:
+        company = Company(name=request.full_name)
+        company = company_repo.create(company)
+    
+    total_amount = Decimal(plan.base_price)
+    
+    order = order_service.create_order(
+        user_id=user.id,
+        company_id=company.id,
+        plan_id=plan.id,
+        jurisdiction=request.jurisdiction,
+        total_amount=total_amount,
+        is_industry_specific=False,
+    )
+    
+    return OrderCreatedResponse(
+        order_id=order.id,
+        status=order.order_status.order_status,
+        created_at=order.created_at,
+        message="Order created successfully"
+    )
+
+
+@router.patch(
+    "/{order_id}/company-details",
+    response_model=OrderSummaryResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Update company details and upload logo",
+)
+async def update_company_details(
+    order_id: int,
+    company_name: str = Form(..., min_length=1),
+    province: str = Form(..., min_length=2, max_length=50),
+    naics_codes: str = Form(..., description="Comma-separated NAICS codes"),
+    logo: UploadFile | None = File(None),
+    order_service: OrderService = Depends(get_order_service),
+    company_repo: CompanyRepository = Depends(get_company_repository),
+    company_logo_repo: CompanyLogoRepository = Depends(get_company_logo_repository),
+    file_storage: FileStorageService = Depends(get_file_storage_service),
+    db: Session = Depends(get_db),
+) -> OrderSummaryResponse:
+    try:
+        order = order_service.get_order_with_relations(order_id)
+    except RecordNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Order {order_id} not found"
+        )
+    
+    naics_list = [code.strip() for code in naics_codes.split(",") if code.strip()]
+    if not naics_list:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one NAICS code is required"
+        )
+    
+    for code in naics_list:
+        if len(code) != 6 or not code.isdigit():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid NAICS code: {code}. Must be exactly 6 digits"
+            )
+    
+    company = order.company
+    company.name = company_name
+    company_repo.update(company)
+    
+    if logo:
+        extension = Path(logo.filename).suffix.lower()
+        if extension not in ALLOWED_LOGO_EXTENSIONS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Logo file type {extension} not supported. Allowed: {ALLOWED_LOGO_EXTENSIONS}"
+            )
+        
+        file_content = await logo.read()
+        size_mb = len(file_content) / (1024 * 1024)
+        if size_mb > MAX_LOGO_SIZE_MB:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Logo file size exceeds {MAX_LOGO_SIZE_MB}MB limit"
+            )
+        
+        try:
+            logo_path = file_storage.save_logo(file_content, order_id, logo.filename)
+            company_logo = company_logo_repo.create_logo(order_id, str(logo_path))
+            
+            company.logo_id = company_logo.id
+            company_repo.update(company)
+        except (FileStorageServiceException, FileSaveException) as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to save logo: {str(e)}"
+            )
+    
+    order = order_service.get_order_with_relations(order_id)
+    
+    company_details = None
+    if order.company:
+        company_details = CompanyDetailsResponse(
+            id=order.company.id,
+            name=order.company.name,
+            logo_id=order.company.logo_id,
+        )
+    
+    return OrderSummaryResponse(
+        order_id=order.id,
+        user_email=order.user.email,
+        full_name=order.user.full_name,
+        company=company_details,
+        plan_name=order.plan.name if order.plan else None,
+        jurisdiction=order.jurisdiction,
+        total_amount=order.total_amount,
+        order_status=order.order_status.order_status,
+        payment_status=order.order_status.payment_status,
+        created_at=order.created_at,
+        completed_at=order.completed_at,
+        is_industry_specific=order.is_industry_specific,
+    )
+
+
+@router.get(
+    "/{order_id}/summary",
+    response_model=OrderSummaryResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Retrieve order summary",
+)
+def get_order_summary(
+    order_id: int,
+    order_service: OrderService = Depends(get_order_service),
+) -> OrderSummaryResponse:
+    try:
+        order = order_service.get_order_with_relations(order_id)
+    except RecordNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Order {order_id} not found"
+        )
+    
+    company_details = None
+    if order.company:
+        company_details = CompanyDetailsResponse(
+            id=order.company.id,
+            name=order.company.name,
+            logo_id=order.company.logo_id,
+        )
+    
+    return OrderSummaryResponse(
+        order_id=order.id,
+        user_email=order.user.email,
+        full_name=order.user.full_name,
+        company=company_details,
+        plan_name=order.plan.name if order.plan else None,
+        jurisdiction=order.jurisdiction,
+        total_amount=order.total_amount,
+        order_status=order.order_status.order_status,
+        payment_status=order.order_status.payment_status,
+        created_at=order.created_at,
+        completed_at=order.completed_at,
+        is_industry_specific=order.is_industry_specific,
+    )

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.user import User, UserRole
@@ -42,7 +42,7 @@ class UserRepository(BaseRepository[User]):
             email=email,
             full_name=full_name,
             role=role,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         return self.create(user)
 
@@ -138,7 +138,7 @@ class UserRepository(BaseRepository[User]):
         if user.otp_token != otp_token:
             return None
         
-        if datetime.utcnow() > user.otp_expires:
+        if datetime.now(timezone.utc) > user.otp_expires:
             return None
         
         return user

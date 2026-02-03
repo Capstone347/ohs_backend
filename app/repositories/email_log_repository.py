@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.email_log import EmailLog, EmailStatus
@@ -64,7 +64,7 @@ class EmailLogRepository(BaseRepository[EmailLog]):
             recipient_email=recipient_email,
             subject=subject,
             status=status,
-            sent_at=datetime.utcnow(),
+            sent_at=datetime.now(timezone.utc),
             failure_reason=failure_reason
         )
         return self.create(email_log)

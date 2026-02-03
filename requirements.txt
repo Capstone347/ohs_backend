@@ -13,6 +13,8 @@ alembic
 # Document Processing
 python-docx
 Pillow
+pypdf
+reportlab
 
 # Email
 Jinja2

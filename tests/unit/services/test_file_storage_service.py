@@ -2,6 +2,7 @@ import pytest
 from pathlib import Path
 import tempfile
 import shutil
+from datetime import datetime, timezone
 
 from app.services.file_storage_service import FileStorageService
 from app.services.exceptions import (
@@ -207,12 +208,10 @@ class TestFileStorageService:
         assert len(logos) == 0
 
     def test_cleanup_old_previews(self, file_storage_service):
-        import time
-        from datetime import datetime
         
         old_preview = file_storage_service.save_preview_document(b"old preview", 101)
         
-        old_time = (datetime.utcnow().timestamp() - (10 * 24 * 3600))
+        old_time = (datetime.now(timezone.utc).timestamp() - (10 * 24 * 3600))
         old_preview.touch()
         import os
         os.utime(old_preview, (old_time, old_time))

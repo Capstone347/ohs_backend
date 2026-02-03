@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 from sqlalchemy import Column, DateTime, Integer, String, Text, Enum as SQLEnum, ForeignKey
@@ -22,7 +22,7 @@ class EmailLog(Base):
     recipient_email = Column(String(255), ForeignKey("users.email", ondelete="NO ACTION", onupdate="NO ACTION"), nullable=False, index=True)
     subject = Column(String(255), nullable=False)
     status = Column(SQLEnum(EmailStatus), nullable=False, default=EmailStatus.PENDING)
-    sent_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    sent_at = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
     failure_reason = Column(Text, nullable=True)
 
     order = relationship("Order", back_populates="email_logs")

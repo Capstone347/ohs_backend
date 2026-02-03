@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.company_logo import CompanyLogo
@@ -52,7 +52,7 @@ class CompanyLogoRepository(BaseRepository[CompanyLogo]):
         logo = CompanyLogo(
             order_id=order_id,
             file_path=file_path,
-            uploaded_at=datetime.utcnow()
+            uploaded_at=datetime.now(timezone.utc)
         )
         return self.create(logo)
 

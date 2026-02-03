@@ -190,7 +190,7 @@ class Order(Base):
     plan_id = Column(Integer, ForeignKey("plans.id"), nullable=False)
     total_amount = Column(Integer, nullable=False)
     status = Column(Enum(OrderStatus), nullable=False)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
     
     # Relationships
     plan = relationship("Plan")
@@ -331,7 +331,7 @@ Three groups, blank line separated:
 ```python
 # Standard library
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Third-party
 from fastapi import APIRouter, Depends
