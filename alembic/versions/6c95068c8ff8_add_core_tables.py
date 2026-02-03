@@ -23,8 +23,8 @@ def upgrade() -> None:
     op.create_table(
         "plans",
         sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
-        sa.Column("slug", sa.Enum("basic", "comprehensive", name="plan_slug_enum"), nullable=False),
-        sa.Column("name", sa.Enum("Basic", "Comprehensive", name="plan_name_enum"), nullable=False),
+        sa.Column("slug", sa.String(50), nullable=False),
+        sa.Column("name", sa.String(100), nullable=False),
         sa.Column("description", sa.Text, nullable=True),
         sa.Column("base_price", sa.Numeric(10, 2), nullable=False),
         sa.UniqueConstraint("slug", name="plan_slug_UNIQUE"),
@@ -32,7 +32,7 @@ def upgrade() -> None:
 
     op.create_table(
         "company",
-        sa.Column("id", sa.Integer, primary_key=True, autoincrement=False),
+        sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
         sa.Column("logo_id", sa.Integer, nullable=True),
         sa.Column("name", sa.String(45), nullable=True),
     
@@ -49,7 +49,7 @@ def upgrade() -> None:
         sa.Column("otp_token", sa.CHAR(6), nullable=True),
         sa.Column("otp_expires", sa.DateTime, nullable=True),
         sa.Column("password_hash", sa.String(45), nullable=True),
-        sa.Column("role", sa.Enum("admin", "content_manager", "support", "customer", name="user_role_enum"), nullable=False, server_default="customer"),
+        sa.Column("role", sa.String(50), nullable=False, server_default="customer"),
         sa.UniqueConstraint("email", name="email_UNIQUE"),
     )
 
@@ -58,6 +58,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
         sa.Column("user_id", sa.Integer, nullable=False),
         sa.Column("plan_id", sa.Integer, nullable=True),
+        sa.Column("company_id", sa.Integer, nullable=False),
         sa.Column("jurisdiction", sa.String(100), nullable=False),
         sa.Column("total_amount", sa.Numeric(10, 2), nullable=False),
         sa.Column("created_at", sa.DateTime, nullable=False, server_default=sa.func.now()),
@@ -77,7 +78,7 @@ def upgrade() -> None:
         sa.Column("downloaded_count", sa.Integer, nullable=False, server_default=sa.text("0")),
         sa.Column("last_downloaded_at", sa.DateTime, nullable=True),
         sa.Column("file_path", sa.String(500), nullable=True),
-        sa.Column("file_format", sa.Enum("docx", "pdf", name="document_format_enum"), nullable=True, server_default="docx"),
+        sa.Column("file_format", sa.String(10), nullable=True, server_default="docx"),
         sa.UniqueConstraint("access_token", name="access_token_UNIQUE"),
     )
 

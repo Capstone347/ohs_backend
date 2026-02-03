@@ -53,7 +53,38 @@ def create_order(
     plan_repo: PlanRepository = Depends(get_plan_repository),
     db: Session = Depends(get_db),
 ) -> OrderCreatedResponse:
-    plan = plan_repo.get_by_id(request.plan_id)
+    if request.plan_id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="plan_id must be greater than 0"
+        )
+    
+    if not request.user_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="user_email is required"
+        )
+    
+    if not request.full_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="full_name is required"
+        )
+    
+    if not request.jurisdiction:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="jurisdiction is required"
+        )
+    
+    try:
+        plan = plan_repo.get_by_id(request.plan_id)
+    except RecordNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Plan with id {request.plan_id} not found"
+        )
+    
     if not plan:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -66,7 +97,7 @@ def create_order(
         user = User(
             email=request.user_email,
             full_name=request.full_name,
-            role=UserRole.CUSTOMER,
+            role=UserRole.CUSTOMER.value,
         )
         user = user_repo.create(user)
     
@@ -112,6 +143,30 @@ async def update_company_details(
     file_storage: FileStorageService = Depends(get_file_storage_service),
     db: Session = Depends(get_db),
 ) -> OrderSummaryResponse:
+    if order_id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="order_id must be greater than 0"
+        )
+    
+    if not company_name or not company_name.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="company_name is required"
+        )
+    
+    if not province or not province.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="province is required"
+        )
+    
+    if not naics_codes or not naics_codes.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="naics_codes is required"
+        )
+    
     try:
         order = order_service.get_order_with_relations(order_id)
     except RecordNotFoundError:
@@ -202,6 +257,12 @@ def get_order_summary(
     order_id: int,
     order_service: OrderService = Depends(get_order_service),
 ) -> OrderSummaryResponse:
+    if order_id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="order_id must be greater than 0"
+        )
+    
     try:
         order = order_service.get_order_with_relations(order_id)
     except RecordNotFoundError:

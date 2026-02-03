@@ -119,8 +119,8 @@ class OrderRepository(BaseRepository[Order]):
                 joinedload(Order.order_status)
             )
             .filter(
-                OrderStatus.order_status == OrderStatusEnum.DRAFT,
-                OrderStatus.payment_status == PaymentStatus.PENDING
+                OrderStatus.order_status == OrderStatusEnum.DRAFT.value,
+                OrderStatus.payment_status == PaymentStatus.PENDING.value
             )
             .order_by(Order.created_at.asc())
             .limit(limit)

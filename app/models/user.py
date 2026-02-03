@@ -1,5 +1,5 @@
 from enum import Enum
-from sqlalchemy import Column, DateTime, Enum as SQLEnum, ForeignKey, Integer, String, CHAR
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, CHAR
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -17,7 +17,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     email = Column(String(255), nullable=False, unique=True)
     full_name = Column(String(255), nullable=False)
-    role = Column(SQLEnum(UserRole), nullable=False, default=UserRole.CUSTOMER)
+    role = Column(String(50), nullable=False, default="customer")
     company_id = Column(Integer, ForeignKey("company.id", ondelete="NO ACTION", onupdate="NO ACTION"), nullable=True, index=True)
     password_hash = Column(String(255), nullable=True)
     otp_token = Column(CHAR(6), nullable=True)

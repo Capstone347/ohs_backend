@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from enum import Enum
 
-from sqlalchemy import Column, DateTime, BigInteger, Integer, String, Text, JSON, Enum as SQLEnum, ForeignKey
+from sqlalchemy import Column, DateTime, BigInteger, Integer, String, Text, JSON, ForeignKey
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -19,7 +19,7 @@ class SystemLog(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="NO ACTION", onupdate="NO ACTION"), nullable=False, index=True)
     order_id = Column(Integer, ForeignKey("orders.id", ondelete="SET NULL", onupdate="CASCADE"), nullable=True, index=True)
-    log_level = Column(SQLEnum(LogLevel), nullable=False, default=LogLevel.INFO)
+    log_level = Column(String(50), nullable=False, default="info")
     source = Column(String(100), nullable=False)
     message = Column(Text, nullable=False)
     log_metadata = Column(JSON, nullable=True)
