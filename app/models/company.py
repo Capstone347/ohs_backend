@@ -13,6 +13,7 @@ class Company(Base):
 
     users = relationship("User", back_populates="company")
     orders = relationship("Order", back_populates="company")
+    industry_profile = relationship("IndustryProfile", back_populates="company", uselist=False)
     logo = relationship(
         "CompanyLogo", 
         foreign_keys=[logo_id],

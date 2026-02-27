@@ -7,6 +7,7 @@ from app.repositories.plan_repository import PlanRepository
 from app.repositories.order_status_repository import OrderStatusRepository
 from app.repositories.email_log_repository import EmailLogRepository
 from app.repositories.company_logo_repository import CompanyLogoRepository
+from app.repositories.industry_profile_repository import IndustryProfileRepository
 
 __all__ = [
     "BaseRepository",
@@ -18,4 +19,5 @@ __all__ = [
     "OrderStatusRepository",
     "EmailLogRepository",
     "CompanyLogoRepository",
+    "IndustryProfileRepository",
 ]
