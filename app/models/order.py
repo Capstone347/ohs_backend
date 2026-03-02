@@ -30,3 +30,4 @@ class Order(Base):
     legal_acknowledgments = relationship("LegalAcknowledgement", back_populates="order")
     naics_user_content = relationship("NAICSUserContent", back_populates="order")
     order_status = relationship("OrderStatus", back_populates="order", uselist=False)
+    industry_intake_response = relationship("IndustryIntakeResponse", back_populates="order", uselist=False)

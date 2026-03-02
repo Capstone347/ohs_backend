@@ -10,6 +10,7 @@ from app.repositories.user_repository import UserRepository
 from app.repositories.plan_repository import PlanRepository
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.legal_acknowledgment_repository import LegalAcknowledgmentRepository
+from app.repositories.industry_intake_response_repository import IndustryIntakeResponseRepository
 from app.services.order_service import OrderService
 from app.services.validation_service import ValidationService
 from app.services.file_storage_service import FileStorageService
@@ -17,6 +18,7 @@ from app.services.document_generation_service import DocumentGenerationService
 from app.services.preview_service import PreviewService
 from app.services.document_service import DocumentService
 from app.services.legal_service import LegalService
+from app.services.industry_intake_service import IndustryIntakeService
 
 
 def get_order_repository(db: Session = Depends(get_db)) -> OrderRepository:
@@ -127,3 +129,16 @@ def get_legal_service(
         order_repo,
         plan_repo,
     )
+
+
+def get_industry_intake_response_repository(
+    db: Session = Depends(get_db),
+) -> IndustryIntakeResponseRepository:
+    return IndustryIntakeResponseRepository(db)
+
+
+def get_industry_intake_service(
+    order_repo: OrderRepository = Depends(get_order_repository),
+    intake_repo: IndustryIntakeResponseRepository = Depends(get_industry_intake_response_repository),
+) -> IndustryIntakeService:
+    return IndustryIntakeService(order_repo, intake_repo)
