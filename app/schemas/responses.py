@@ -24,6 +24,11 @@ class ErrorResponse(BaseModel):
     details: dict[str, str] | None = Field(None, example={"company_name": "This field is required"})
 
 
+class ErrorDetail(BaseModel):
+    code: str = Field(..., example="VALIDATION_ERROR")
+    message: str = Field(..., example="One or more fields failed validation")
+
+
 class SuccessResponse(BaseModel):
     ok: bool = True
     data: dict | list | None = None
