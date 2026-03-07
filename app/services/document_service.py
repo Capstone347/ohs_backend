@@ -66,7 +66,13 @@ class DocumentService:
         if document.access_token != access_token:
             raise DocumentGenerationServiceException("Invalid access token")
         
-        if document.token_expires_at < datetime.now(timezone.utc):
+        now_utc = datetime.now(timezone.utc)
+        token_expiry = document.token_expires_at
+        
+        if token_expiry.tzinfo is None:
+            token_expiry = token_expiry.replace(tzinfo=timezone.utc)
+        
+        if token_expiry < now_utc:
             raise DocumentGenerationServiceException("Access token has expired")
         
         if not document.file_path:

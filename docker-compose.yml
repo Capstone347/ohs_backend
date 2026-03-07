@@ -35,6 +35,7 @@ services:
       - .env.docker
     volumes:
       - ./app:/app/app
+      - ./alembic:/app/alembic
       - ./scripts:/app/scripts
       - ./data:/app/data
       - ./templates:/app/templates

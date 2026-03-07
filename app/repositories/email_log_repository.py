@@ -63,7 +63,7 @@ class EmailLogRepository(BaseRepository[EmailLog]):
             order_id=order_id,
             recipient_email=recipient_email,
             subject=subject,
-            status=status,
+            status=status.value if isinstance(status, EmailStatus) else status,
             sent_at=datetime.now(timezone.utc),
             failure_reason=failure_reason
         )
@@ -91,7 +91,7 @@ class EmailLogRepository(BaseRepository[EmailLog]):
         if not email_log_id:
             raise ValueError("email_log_id is required")
         
-        return self.update_status(email_log_id, EmailStatus.DELIVERED)
+        return self.update_status(email_log_id, EmailStatus.DELIVERED.value)
 
     def mark_as_failed(self, email_log_id: int, failure_reason: str) -> EmailLog:
         if not email_log_id:
@@ -100,7 +100,7 @@ class EmailLogRepository(BaseRepository[EmailLog]):
         if not failure_reason:
             raise ValueError("failure_reason is required")
         
-        return self.update_status(email_log_id, EmailStatus.FAILED, failure_reason)
+        return self.update_status(email_log_id, EmailStatus.FAILED.value, failure_reason)
 
     def get_failed_emails(self) -> list[EmailLog]:
         return self.get_by_status(EmailStatus.FAILED)

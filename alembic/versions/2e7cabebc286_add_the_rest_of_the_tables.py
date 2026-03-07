@@ -34,7 +34,7 @@ def upgrade() -> None:
         sa.Column("order_id", sa.Integer, nullable=False),
         sa.Column("recipient_email", sa.String(255), nullable=False),
         sa.Column("subject", sa.String(255), nullable=False),
-        sa.Column("status", sa.Enum("sent", "delivered", "failed", name="email_status_enum"), nullable=False, server_default="sent"),
+        sa.Column("status", sa.String(20), nullable=False, server_default="sent"),
         sa.Column("sent_at", sa.DateTime, nullable=False, server_default=sa.func.now()),
         sa.Column("failure_reason", sa.Text, nullable=True),
     )
@@ -44,7 +44,7 @@ def upgrade() -> None:
         sa.Column("id", sa.BigInteger, primary_key=True, autoincrement=True),
         sa.Column("user_id", sa.Integer, nullable=False),
         sa.Column("order_id", sa.Integer, nullable=True),
-        sa.Column("log_level", sa.Enum("info", "warning", "error", name="log_level_enum"), nullable=False, server_default="info"),
+        sa.Column("log_level", sa.String(20), nullable=False, server_default="info"),
         sa.Column("source", sa.String(100), nullable=False),
         sa.Column("message", sa.Text, nullable=False),
         sa.Column("metadata", sa.JSON, nullable=True),
@@ -80,10 +80,10 @@ def upgrade() -> None:
     op.create_table(
         "order_status",
         sa.Column("order_id", sa.Integer, primary_key=True),
-        sa.Column("order_status", sa.Enum("draft", "processing", "review_pending", "available", "cancelled", name="order_status_enum"), nullable=False, server_default="draft"),
+        sa.Column("order_status", sa.String(50), nullable=False, server_default="draft"),
         sa.Column("currency", sa.CHAR(3), nullable=False, server_default="CAD"),
         sa.Column("payment_provider", sa.String(35), nullable=True),
-        sa.Column("payment_status", sa.Enum("pending", "paid", "failed", "refunded", name="payment_status_enum"), nullable=False, server_default="pending"),
+        sa.Column("payment_status", sa.String(50), nullable=False, server_default="pending"),
     )
 def downgrade() -> None:
     op.drop_table("order_status")

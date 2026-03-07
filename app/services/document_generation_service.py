@@ -94,7 +94,7 @@ class DocumentGenerationService:
         document = DocumentModel(
             order_id=order_id,
             file_path=str(file_path),
-            file_format=DocumentFormat.DOCX,
+            file_format=DocumentFormat.DOCX.value,
             access_token=access_token,
             token_expires_at=token_expires_at,
             generated_at=datetime.now(timezone.utc),

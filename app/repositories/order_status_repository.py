@@ -53,8 +53,8 @@ class OrderStatusRepository(BaseRepository[OrderStatus]):
         
         status = OrderStatus(
             order_id=order_id,
-            order_status=order_status,
-            payment_status=payment_status,
+            order_status=order_status.value,
+            payment_status=payment_status.value,
             currency=currency,
             payment_provider=payment_provider
         )
@@ -68,7 +68,7 @@ class OrderStatusRepository(BaseRepository[OrderStatus]):
             raise ValueError("new_status is required")
         
         order_status = self.get_by_id_or_fail(order_id)
-        order_status.order_status = new_status
+        order_status.order_status = new_status.value
         return self.update(order_status)
 
     def update_payment_status(self, order_id: int, new_status: PaymentStatus) -> OrderStatus:
@@ -79,7 +79,7 @@ class OrderStatusRepository(BaseRepository[OrderStatus]):
             raise ValueError("new_status is required")
         
         order_status = self.get_by_id_or_fail(order_id)
-        order_status.payment_status = new_status
+        order_status.payment_status = new_status.value
         return self.update(order_status)
 
     def update_payment_provider(self, order_id: int, payment_provider: str) -> OrderStatus:
@@ -100,7 +100,7 @@ class OrderStatusRepository(BaseRepository[OrderStatus]):
         return (
             self.db.query(OrderStatus)
             .options(joinedload(OrderStatus.order))
-            .filter(OrderStatus.order_status == status)
+            .filter(OrderStatus.order_status == status.value)
             .all()
         )
 
@@ -111,7 +111,7 @@ class OrderStatusRepository(BaseRepository[OrderStatus]):
         return (
             self.db.query(OrderStatus)
             .options(joinedload(OrderStatus.order))
-            .filter(OrderStatus.payment_status == payment_status)
+            .filter(OrderStatus.payment_status == payment_status.value)
             .all()
         )
 
@@ -138,7 +138,7 @@ class OrderStatusRepository(BaseRepository[OrderStatus]):
             raise ValueError("payment_provider is required")
         
         order_status = self.get_by_id_or_fail(order_id)
-        order_status.payment_status = PaymentStatus.PAID
+        order_status.payment_status = PaymentStatus.PAID.value
         order_status.payment_provider = payment_provider
         return self.update(order_status)
 
