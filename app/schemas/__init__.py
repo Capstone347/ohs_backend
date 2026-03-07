@@ -3,9 +3,9 @@ from .company import CompanyCreate, CompanyResponse
 from .order import OrderCreate, OrderResponse
 from .document import DocumentResponse, DocumentGenerateResponse, DocumentPreviewResponse
 from .payment import (
-    PaymentCreate,
-    PaymentIntentResponse,
-    StripePaymentIntentStatus,
+    CheckoutSessionResponse,
+    StripeCheckoutStatus,
+    StripeConfigResponse,
     StripeWebhookEvent,
     StripeWebhookEventType,
 )
@@ -27,9 +27,9 @@ __all__ = [
 	"DocumentResponse",
 	"DocumentGenerateResponse",
 	"DocumentPreviewResponse",
-	"PaymentCreate",
-	"PaymentIntentResponse",
-	"StripePaymentIntentStatus",
+	"CheckoutSessionResponse",
+	"StripeCheckoutStatus",
+	"StripeConfigResponse",
 	"StripeWebhookEvent",
 	"StripeWebhookEventType",
 	"LegalDisclaimerRequest",

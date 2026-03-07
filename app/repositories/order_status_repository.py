@@ -148,6 +148,40 @@ class OrderStatusRepository(BaseRepository[OrderStatus]):
         
         return self.update_order_status(order_id, OrderStatusEnum.PROCESSING)
 
+    def mark_as_failed(self, order_id: int) -> OrderStatus:
+        if not order_id:
+            raise ValueError("order_id is required")
+
+        order_status = self.get_by_id_or_fail(order_id)
+        order_status.payment_status = PaymentStatus.FAILED.value
+        return self.update(order_status)
+
+    def update_stripe_checkout_session_id(
+        self, order_id: int, checkout_session_id: str
+    ) -> OrderStatus:
+        if not order_id:
+            raise ValueError("order_id is required")
+
+        if not checkout_session_id:
+            raise ValueError("checkout_session_id is required")
+
+        order_status = self.get_by_id_or_fail(order_id)
+        order_status.stripe_checkout_session_id = checkout_session_id
+        return self.update(order_status)
+
+    def update_stripe_payment_intent_id(
+        self, order_id: int, payment_intent_id: str
+    ) -> OrderStatus:
+        if not order_id:
+            raise ValueError("order_id is required")
+
+        if not payment_intent_id:
+            raise ValueError("payment_intent_id is required")
+
+        order_status = self.get_by_id_or_fail(order_id)
+        order_status.stripe_payment_intent_id = payment_intent_id
+        return self.update(order_status)
+
     def mark_as_available(self, order_id: int) -> OrderStatus:
         if not order_id:
             raise ValueError("order_id is required")

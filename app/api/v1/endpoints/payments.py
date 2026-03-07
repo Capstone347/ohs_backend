@@ -3,57 +3,85 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from app.api.dependencies import (
-    get_order_repository,
-    get_email_log_repository,
-    get_email_template_renderer,
-    get_email_service,
     get_document_repository,
+    get_email_service,
+    get_email_template_renderer,
+    get_order_repository,
+    get_order_status_repository,
+    get_payment_service,
 )
-from app.repositories.order_repository import OrderRepository
-from app.repositories.email_log_repository import EmailLogRepository
-from app.repositories.document_repository import DocumentRepository
-from app.repositories.base_repository import RecordNotFoundError
-from app.schemas.payment import PaymentIntentResponse, StripePaymentIntentStatus
-from app.schemas.email import DocumentDeliveryContext
-from app.services.email_template_renderer import EmailTemplateRenderer
-from app.services.email_service import EmailService
 from app.config import settings
+from app.repositories.base_repository import RecordNotFoundError
+from app.repositories.document_repository import DocumentRepository
+from app.repositories.order_repository import OrderRepository
+from app.repositories.order_status_repository import OrderStatusRepository
+from app.schemas.email import DocumentDeliveryContext
+from app.schemas.payment import CheckoutSessionResponse, StripeConfigResponse
+from app.services.email_service import EmailService
+from app.services.email_template_renderer import EmailTemplateRenderer
+from app.services.payment_service import PaymentService
 
 router = APIRouter()
 
 
-@router.post(
-    "/orders/{order_id}/payment-intent",
-    response_model=PaymentIntentResponse,
+@router.get(
+    "/stripe/config",
+    response_model=StripeConfigResponse,
     status_code=status.HTTP_200_OK,
 )
-def create_payment_intent(
+def get_stripe_config() -> StripeConfigResponse:
+    return StripeConfigResponse(publishable_key=settings.stripe_publishable_key)
+
+
+@router.post(
+    "/orders/{order_id}/create-checkout-session",
+    response_model=CheckoutSessionResponse,
+    status_code=status.HTTP_200_OK,
+)
+def create_checkout_session(
     order_id: int = Path(..., gt=0),
     order_repo: OrderRepository = Depends(get_order_repository),
-) -> PaymentIntentResponse:
-    if order_id <= 0:
-        raise HTTPException(status_code=400, detail="order_id must be greater than 0")
-    
+    order_status_repo: OrderStatusRepository = Depends(get_order_status_repository),
+    payment_service: PaymentService = Depends(get_payment_service),
+) -> CheckoutSessionResponse:
     try:
-        order = order_repo.get_by_id_or_fail(order_id)
-    except RecordNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        order = order_repo.get_by_id_with_relations(order_id)
+    except RecordNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    if not order:
+        raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
+
+    if not order.user:
+        raise HTTPException(status_code=400, detail="Order has no associated user")
+
+    if not order.plan:
+        raise HTTPException(status_code=400, detail="Order has no associated plan")
 
     amount_cents = int((order.total_amount * Decimal(100)).to_integral_value())
     currency = "CAD"
-    if getattr(order, "order_status", None) and getattr(order.order_status, "currency", None):
+    if order.order_status and order.order_status.currency:
         currency = order.order_status.currency
 
-    pi_id = f"pi_mock_{order_id}"
-    client_secret = f"secret_mock_{order_id}"
+    product_name = f"OHS Manual - {order.plan.name}"
+    success_url = f"{settings.frontend_url}/orders/{order_id}/success"
+    cancel_url = f"{settings.frontend_url}/orders/{order_id}/payment"
 
-    return PaymentIntentResponse(
-        id=pi_id,
-        client_secret=client_secret,
-        status=StripePaymentIntentStatus.SUCCEEDED,
+    checkout_response = payment_service.create_checkout_session(
+        order_id=order_id,
         amount_cents=amount_cents,
         currency=currency,
+        product_name=product_name,
+        customer_email=order.user.email,
+        success_url=success_url,
+        cancel_url=cancel_url,
     )
+
+    order_status_repo.update_stripe_checkout_session_id(
+        order_id, checkout_response.checkout_session_id
+    )
+
+    return checkout_response
 
 
 @router.post(
@@ -67,24 +95,23 @@ def trigger_order_delivery(
     renderer: EmailTemplateRenderer = Depends(get_email_template_renderer),
     email_service: EmailService = Depends(get_email_service),
 ) -> dict:
-    if order_id <= 0:
-        raise HTTPException(status_code=400, detail="order_id must be greater than 0")
-
     try:
         order = order_repo.get_by_id_with_relations(order_id)
-    except RecordNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    except RecordNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
-    company_name = getattr(order.company, "name", "") if order and getattr(order, "company", None) else ""
-    recipient = order.user.email if order and getattr(order, "user", None) else ""
-    
+    if not order:
+        raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
+
+    company_name = order.company.name if order.company else ""
+    recipient = order.user.email if order.user else ""
+
     if not recipient:
         raise HTTPException(status_code=400, detail="Order has no associated user email")
 
-    # Get document with access token
     documents = document_repo.get_documents_by_order_id(order_id)
     access_token = documents[0].access_token if documents else ""
-    
+
     download_link = f"{settings.app_base_url}/api/v1/documents/{order_id}/download"
     if access_token:
         download_link += f"?token={access_token}"
@@ -97,7 +124,6 @@ def trigger_order_delivery(
     )
 
     html_body = renderer.render_document_delivery(context_model)
-
     email_service.send_email(order_id, recipient, "Your documents are ready", html_body)
 
     return {"status": "delivery_triggered"}

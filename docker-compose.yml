@@ -54,6 +54,20 @@ services:
         uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
       "
 
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: ohs-remote-ngrok
+    restart: unless-stopped
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    command: http app:8000 --log stdout
+    ports:
+      - "4040:4040"
+    depends_on:
+      - app
+    networks:
+      - ohs-network-dev
+
 volumes:
   mysql_dev_data:
 
