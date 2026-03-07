@@ -355,7 +355,7 @@ STRIPE_API_KEY=sk_test_mock_key
 STRIPE_WEBHOOK_SECRET=whsec_mock_secret
 
 # CORS
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080
 
 # Logging
 LOG_LEVEL=INFO

@@ -60,6 +60,17 @@ class CompanyDetailsResponse(BaseModel):
     logo_id: int | None = Field(None, example=1)
 
 
+class DocumentSummary(BaseModel):
+    document_id: int = Field(..., example=7)
+    access_token: str = Field(..., example="a1b2c3d4e5f6...")
+    token_expires_at: datetime = Field(..., example="2026-03-02T12:00:00Z")
+    generated_at: datetime = Field(..., example="2026-02-02T12:00:00Z")
+    file_format: str = Field(..., example="docx")
+
+    class Config:
+        from_attributes = True
+
+
 class OrderSummaryResponse(BaseModel):
     order_id: int = Field(..., example=1)
     user_email: str = Field(..., example="customer@example.com")
@@ -73,6 +84,7 @@ class OrderSummaryResponse(BaseModel):
     created_at: datetime
     completed_at: datetime | None = None
     is_industry_specific: bool = Field(..., example=False)
+    documents: list[DocumentSummary] = Field(default_factory=list)
     
     class Config:
         from_attributes = True
