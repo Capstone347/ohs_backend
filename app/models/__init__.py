@@ -20,6 +20,7 @@ from .industry_naics_code import IndustryNAICSCode
 from .naics_code import NAICSCode
 from .naics_user_content import NAICSUserContent
 from .order_status import OrderStatus, OrderStatusEnum, PaymentStatus
+from .industry_intake_response import IndustryIntakeResponse
 
 __all__ = [
     "Plan",
@@ -44,4 +45,5 @@ __all__ = [
     "OrderStatus", 
     "OrderStatusEnum", 
     "PaymentStatus",
+    "IndustryIntakeResponse",
 ]

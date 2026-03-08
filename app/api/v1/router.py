@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import health, payments, webhooks, documents, legal, orders, plans
+from app.api.v1.endpoints import health, payments, webhooks, documents, legal, orders, industry_intake, plans
 
 api_router = APIRouter()
 
@@ -11,3 +11,4 @@ api_router.include_router(documents.router, tags=["documents"])
 api_router.include_router(legal.router, tags=["legal"])
 api_router.include_router(payments.router, prefix="/payments", tags=["payments"]) 
 api_router.include_router(webhooks.router, tags=["webhooks"])
+api_router.include_router(industry_intake.router, prefix="/industry", tags=["industry-intake"])
