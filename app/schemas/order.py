@@ -58,6 +58,9 @@ class CompanyDetailsResponse(BaseModel):
     id: int = Field(..., example=42)
     name: str = Field(..., example="Acme Safety Inc.")
     logo_id: int | None = Field(None, example=1)
+    province: str | None = Field(None, example="ON")
+    business_description: str | None = Field(None, example="Industrial painting and coating services")
+    naics_codes: list[str] = Field(default_factory=list, example=["123456", "234567"])
 
 
 class OrderSummaryResponse(BaseModel):

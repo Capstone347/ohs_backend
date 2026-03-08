@@ -88,8 +88,8 @@ def test_webhook_errors_on_missing_or_invalid_order_id(client):
     }
 
     resp_missing = client.post("/api/v1/webhooks/payment-confirmation", json=payload_missing)
-    assert resp_missing.status_code == 200
-    assert resp_missing.json()["status"] == "error"
+    assert resp_missing.status_code == 400
+    assert resp_missing.json()["detail"] == "order_id missing from metadata"
 
     payload_invalid = {
         "event_type": "payment_intent.succeeded",
@@ -98,5 +98,5 @@ def test_webhook_errors_on_missing_or_invalid_order_id(client):
     }
 
     resp_invalid = client.post("/api/v1/webhooks/payment-confirmation", json=payload_invalid)
-    assert resp_invalid.status_code == 200
-    assert resp_invalid.json()["status"] == "error"
+    assert resp_invalid.status_code == 400
+    assert resp_invalid.json()["detail"] == "Invalid order_id in metadata"

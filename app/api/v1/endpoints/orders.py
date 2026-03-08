@@ -1,5 +1,6 @@
 from pathlib import Path
 from decimal import Decimal
+from typing import Iterable
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
@@ -10,6 +11,7 @@ from app.api.dependencies import (
     get_company_logo_repository,
     get_user_repository,
     get_plan_repository,
+    get_industry_profile_repository,
     get_file_storage_service,
     get_db,
 )
@@ -30,6 +32,7 @@ from app.repositories.company_repository import CompanyRepository
 from app.repositories.company_logo_repository import CompanyLogoRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.plan_repository import PlanRepository
+from app.repositories.industry_profile_repository import IndustryProfileRepository
 from app.models.company import Company
 from app.models.user import User, UserRole
 
@@ -37,6 +40,43 @@ router = APIRouter()
 
 ALLOWED_LOGO_EXTENSIONS = {".png", ".jpg", ".jpeg", ".svg"}
 MAX_LOGO_SIZE_MB = 5
+
+
+def parse_naics_codes_input(naics_codes: list[str] | None, naics_code: str | None) -> list[str]:
+    parsed_codes: list[str] = []
+
+    for raw_entry in naics_codes or []:
+        split_candidates: Iterable[str] = raw_entry.split(",") if "," in raw_entry else [raw_entry]
+        for candidate in split_candidates:
+            normalized = candidate.strip()
+            if normalized:
+                parsed_codes.append(normalized)
+
+    if naics_code and naics_code.strip():
+        parsed_codes.append(naics_code.strip())
+
+    deduplicated_codes: list[str] = []
+    seen_codes: set[str] = set()
+    for code in parsed_codes:
+        if code not in seen_codes:
+            seen_codes.add(code)
+            deduplicated_codes.append(code)
+
+    return deduplicated_codes
+
+
+def build_company_details_response(company: Company) -> CompanyDetailsResponse:
+    profile = company.industry_profile
+    naics_codes = [entry.code for entry in profile.naics_codes] if profile else []
+
+    return CompanyDetailsResponse(
+        id=company.id,
+        name=company.name,
+        logo_id=company.logo_id,
+        province=profile.province if profile else None,
+        business_description=profile.business_description if profile else None,
+        naics_codes=naics_codes,
+    )
 
 
 @router.post(
@@ -53,7 +93,38 @@ def create_order(
     plan_repo: PlanRepository = Depends(get_plan_repository),
     db: Session = Depends(get_db),
 ) -> OrderCreatedResponse:
-    plan = plan_repo.get_by_id(request.plan_id)
+    if request.plan_id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="plan_id must be greater than 0"
+        )
+    
+    if not request.user_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="user_email is required"
+        )
+    
+    if not request.full_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="full_name is required"
+        )
+    
+    if not request.jurisdiction:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="jurisdiction is required"
+        )
+    
+    try:
+        plan = plan_repo.get_by_id(request.plan_id)
+    except RecordNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Plan with id {request.plan_id} not found"
+        )
+    
     if not plan:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -66,7 +137,7 @@ def create_order(
         user = User(
             email=request.user_email,
             full_name=request.full_name,
-            role=UserRole.CUSTOMER,
+            role=UserRole.CUSTOMER.value,
         )
         user = user_repo.create(user)
     
@@ -104,14 +175,41 @@ async def update_company_details(
     order_id: int,
     company_name: str = Form(..., min_length=1),
     province: str = Form(..., min_length=2, max_length=50),
-    naics_codes: str = Form(..., description="Comma-separated NAICS codes"),
+    naics_codes: list[str] | None = Form(None, description="NAICS code list"),
+    naics_code: str | None = Form(None, description="Deprecated single NAICS code"),
+    business_description: str | None = Form(None),
     logo: UploadFile | None = File(None),
     order_service: OrderService = Depends(get_order_service),
     company_repo: CompanyRepository = Depends(get_company_repository),
     company_logo_repo: CompanyLogoRepository = Depends(get_company_logo_repository),
+    industry_profile_repo: IndustryProfileRepository = Depends(get_industry_profile_repository),
     file_storage: FileStorageService = Depends(get_file_storage_service),
     db: Session = Depends(get_db),
 ) -> OrderSummaryResponse:
+    if order_id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="order_id must be greater than 0"
+        )
+    
+    if not company_name or not company_name.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="company_name is required"
+        )
+    
+    if not province or not province.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="province is required"
+        )
+    
+    if not naics_codes or not naics_codes.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="naics_codes is required"
+        )
+    
     try:
         order = order_service.get_order_with_relations(order_id)
     except RecordNotFoundError:
@@ -120,7 +218,7 @@ async def update_company_details(
             detail=f"Order {order_id} not found"
         )
     
-    naics_list = [code.strip() for code in naics_codes.split(",") if code.strip()]
+    naics_list = parse_naics_codes_input(naics_codes, naics_code)
     if not naics_list:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -133,6 +231,13 @@ async def update_company_details(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid NAICS code: {code}. Must be exactly 6 digits"
             )
+
+    industry_profile_repo.upsert_profile_and_codes(
+        company_id=order.company.id,
+        province=province,
+        naics_codes=naics_list,
+        business_description=business_description,
+    )
     
     company = order.company
     company.name = company_name
@@ -170,11 +275,7 @@ async def update_company_details(
     
     company_details = None
     if order.company:
-        company_details = CompanyDetailsResponse(
-            id=order.company.id,
-            name=order.company.name,
-            logo_id=order.company.logo_id,
-        )
+        company_details = build_company_details_response(order.company)
     
     return OrderSummaryResponse(
         order_id=order.id,
@@ -202,6 +303,12 @@ def get_order_summary(
     order_id: int,
     order_service: OrderService = Depends(get_order_service),
 ) -> OrderSummaryResponse:
+    if order_id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="order_id must be greater than 0"
+        )
+    
     try:
         order = order_service.get_order_with_relations(order_id)
     except RecordNotFoundError:
@@ -212,11 +319,7 @@ def get_order_summary(
     
     company_details = None
     if order.company:
-        company_details = CompanyDetailsResponse(
-            id=order.company.id,
-            name=order.company.name,
-            logo_id=order.company.logo_id,
-        )
+        company_details = build_company_details_response(order.company)
     
     return OrderSummaryResponse(
         order_id=order.id,

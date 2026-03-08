@@ -1,6 +1,8 @@
 from datetime import datetime
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.company import Company
+from app.models.industry_profile import IndustryProfile
 from app.models.order import Order
 from app.models.order_status import OrderStatusEnum, PaymentStatus
 from app.repositories.base_repository import BaseRepository
@@ -18,7 +20,9 @@ class OrderRepository(BaseRepository[Order]):
             self.db.query(Order)
             .options(
                 joinedload(Order.user),
-                joinedload(Order.company),
+                joinedload(Order.company)
+                .joinedload(Company.industry_profile)
+                .joinedload(IndustryProfile.naics_codes),
                 joinedload(Order.plan),
                 joinedload(Order.order_status),
                 joinedload(Order.documents)
@@ -119,8 +123,8 @@ class OrderRepository(BaseRepository[Order]):
                 joinedload(Order.order_status)
             )
             .filter(
-                OrderStatus.order_status == OrderStatusEnum.DRAFT,
-                OrderStatus.payment_status == PaymentStatus.PENDING
+                OrderStatus.order_status == OrderStatusEnum.DRAFT.value,
+                OrderStatus.payment_status == PaymentStatus.PENDING.value
             )
             .order_by(Order.created_at.asc())
             .limit(limit)

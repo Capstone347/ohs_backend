@@ -42,6 +42,8 @@ class Settings(BaseSettings):
     stripe_api_key: str = Field(...)
     stripe_webhook_secret: str = Field(...)
     
+    app_base_url: str = Field(default="http://localhost:8000")
+    
     allowed_origins: str = Field(default="http://localhost:3000,http://localhost:5173")
     
     log_level: str = Field(default="INFO")

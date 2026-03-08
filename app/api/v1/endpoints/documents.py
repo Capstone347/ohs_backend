@@ -125,7 +125,7 @@ def get_document(
             document_id=document.document_id,
             order_id=document.order_id,
             file_path=document.file_path or "",
-            file_format=document.file_format.value if document.file_format else "docx",
+            file_format=document.file_format if document.file_format else "docx",
             access_token=document.access_token,
             token_expires_at=document.token_expires_at,
             generated_at=document.generated_at

@@ -41,7 +41,7 @@ class UserRepository(BaseRepository[User]):
         user = User(
             email=email,
             full_name=full_name,
-            role=role,
+            role=role.value,
             created_at=datetime.now(timezone.utc)
         )
         return self.create(user)

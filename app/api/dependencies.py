@@ -8,9 +8,11 @@ from app.repositories.company_repository import CompanyRepository
 from app.repositories.company_logo_repository import CompanyLogoRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.plan_repository import PlanRepository
+from app.repositories.industry_profile_repository import IndustryProfileRepository
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.legal_acknowledgment_repository import LegalAcknowledgmentRepository
 from app.repositories.industry_intake_response_repository import IndustryIntakeResponseRepository
+from app.repositories.email_log_repository import EmailLogRepository
 from app.services.order_service import OrderService
 from app.services.validation_service import ValidationService
 from app.services.file_storage_service import FileStorageService
@@ -19,6 +21,11 @@ from app.services.preview_service import PreviewService
 from app.services.document_service import DocumentService
 from app.services.legal_service import LegalService
 from app.services.industry_intake_service import IndustryIntakeService
+from app.services.email_service import EmailService
+from app.services.email_template_renderer import EmailTemplateRenderer
+from app.services.payment_service import PaymentService
+from app.services.stripe_provider import StripePaymentProvider
+from app.config import settings
 
 
 def get_order_repository(db: Session = Depends(get_db)) -> OrderRepository:
@@ -45,12 +52,20 @@ def get_plan_repository(db: Session = Depends(get_db)) -> PlanRepository:
     return PlanRepository(db)
 
 
+def get_industry_profile_repository(db: Session = Depends(get_db)) -> IndustryProfileRepository:
+    return IndustryProfileRepository(db)
+
+
 def get_document_repository(db: Session = Depends(get_db)) -> DocumentRepository:
     return DocumentRepository(db)
 
 
 def get_legal_acknowledgment_repository(db: Session = Depends(get_db)) -> LegalAcknowledgmentRepository:
     return LegalAcknowledgmentRepository(db)
+
+
+def get_email_log_repository(db: Session = Depends(get_db)) -> EmailLogRepository:
+    return EmailLogRepository(db)
 
 
 def get_validation_service() -> ValidationService:
@@ -142,3 +157,27 @@ def get_industry_intake_service(
     intake_repo: IndustryIntakeResponseRepository = Depends(get_industry_intake_response_repository),
 ) -> IndustryIntakeService:
     return IndustryIntakeService(order_repo, intake_repo)
+def get_email_template_renderer() -> EmailTemplateRenderer:
+    return EmailTemplateRenderer()
+
+
+def get_email_service(
+    email_log_repo: EmailLogRepository = Depends(get_email_log_repository),
+) -> EmailService:
+    return EmailService(email_log_repo, settings)
+
+
+def get_stripe_payment_provider() -> StripePaymentProvider:
+    if not settings.stripe_api_key:
+        raise ValueError("STRIPE_API_KEY is not configured")
+    
+    return StripePaymentProvider(
+        api_key=settings.stripe_api_key,
+        webhook_secret=settings.stripe_webhook_secret
+    )
+
+
+def get_payment_service(
+    provider: StripePaymentProvider = Depends(get_stripe_payment_provider),
+) -> PaymentService:
+    return PaymentService(provider=provider)

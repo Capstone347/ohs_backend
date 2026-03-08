@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from enum import Enum
 
-from sqlalchemy import Column, DateTime, Integer, String, CHAR, JSON, Enum as SQLEnum, ForeignKey
+from sqlalchemy import Column, DateTime, Integer, String, CHAR, JSON, ForeignKey
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -24,6 +24,6 @@ class Document(Base):
     downloaded_count = Column(Integer, nullable=False, default=0)
     last_downloaded_at = Column(DateTime, nullable=True)
     file_path = Column(String(500), nullable=True)
-    file_format = Column(SQLEnum(DocumentFormat), nullable=True, default=DocumentFormat.DOCX)
+    file_format = Column(String(10), nullable=True, default="docx")
 
     order = relationship("Order", back_populates="documents")
