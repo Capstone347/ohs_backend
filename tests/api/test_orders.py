@@ -145,7 +145,7 @@ def test_update_company_details_success_without_logo(client, sample_order):
     form_data = {
         "company_name": "Updated Company",
         "province": "ON",
-        "naics_codes": "123456,234567",
+        "naics_codes": ["123456", "234567", "123456"],
     }
     response = client.patch(
         f"/api/v1/orders/{sample_order.id}/company-details",
@@ -155,13 +155,15 @@ def test_update_company_details_success_without_logo(client, sample_order):
     data = response.json()
     assert data["order_id"] == sample_order.id
     assert data["company"]["name"] == "Updated Company"
+    assert data["company"]["province"] == "ON"
+    assert data["company"]["naics_codes"] == ["123456", "234567"]
 
 
 def test_update_company_details_success_with_logo(client, sample_order):
     form_data = {
         "company_name": "Company With Logo",
         "province": "ON",
-        "naics_codes": "123456",
+        "naics_codes": ["123456"],
     }
     logo_content = b"fake image content"
     files = {
@@ -176,6 +178,23 @@ def test_update_company_details_success_with_logo(client, sample_order):
     data = response.json()
     assert data["company"]["name"] == "Company With Logo"
     assert data["company"]["logo_id"] is not None
+    assert data["company"]["naics_codes"] == ["123456"]
+
+
+def test_update_company_details_supports_legacy_naics_code(client, sample_order):
+    form_data = {
+        "company_name": "Legacy Company",
+        "province": "ON",
+        "naics_code": "345678",
+    }
+    response = client.patch(
+        f"/api/v1/orders/{sample_order.id}/company-details",
+        data=form_data,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["company"]["name"] == "Legacy Company"
+    assert data["company"]["naics_codes"] == ["345678"]
 
 
 def test_update_company_details_order_not_found(client):

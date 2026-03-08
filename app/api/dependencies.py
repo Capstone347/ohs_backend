@@ -8,6 +8,7 @@ from app.repositories.company_repository import CompanyRepository
 from app.repositories.company_logo_repository import CompanyLogoRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.plan_repository import PlanRepository
+from app.repositories.industry_profile_repository import IndustryProfileRepository
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.legal_acknowledgment_repository import LegalAcknowledgmentRepository
 from app.repositories.email_log_repository import EmailLogRepository
@@ -47,6 +48,10 @@ def get_user_repository(db: Session = Depends(get_db)) -> UserRepository:
 
 def get_plan_repository(db: Session = Depends(get_db)) -> PlanRepository:
     return PlanRepository(db)
+
+
+def get_industry_profile_repository(db: Session = Depends(get_db)) -> IndustryProfileRepository:
+    return IndustryProfileRepository(db)
 
 
 def get_document_repository(db: Session = Depends(get_db)) -> DocumentRepository:
