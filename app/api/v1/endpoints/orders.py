@@ -21,6 +21,7 @@ from app.schemas.order import (
     OrderCreatedResponse,
     OrderSummaryResponse,
     CompanyDetailsResponse,
+    DocumentSummary,
 )
 from app.services.order_service import OrderService
 from app.services.file_storage_service import FileStorageService
@@ -277,20 +278,7 @@ async def update_company_details(
     if order.company:
         company_details = build_company_details_response(order.company)
     
-    return OrderSummaryResponse(
-        order_id=order.id,
-        user_email=order.user.email,
-        full_name=order.user.full_name,
-        company=company_details,
-        plan_name=order.plan.name if order.plan else None,
-        jurisdiction=order.jurisdiction,
-        total_amount=order.total_amount,
-        order_status=order.order_status.order_status,
-        payment_status=order.order_status.payment_status,
-        created_at=order.created_at,
-        completed_at=order.completed_at,
-        is_industry_specific=order.is_industry_specific,
-    )
+    return _build_order_summary(order, company_details)
 
 
 @router.get(
@@ -321,6 +309,21 @@ def get_order_summary(
     if order.company:
         company_details = build_company_details_response(order.company)
     
+    return _build_order_summary(order, company_details)
+
+
+def _build_order_summary(order, company_details: CompanyDetailsResponse | None) -> OrderSummaryResponse:
+    document_summaries = [
+        DocumentSummary(
+            document_id=doc.document_id,
+            access_token=doc.access_token,
+            token_expires_at=doc.token_expires_at,
+            generated_at=doc.generated_at,
+            file_format=doc.file_format or "docx",
+        )
+        for doc in (order.documents or [])
+    ]
+
     return OrderSummaryResponse(
         order_id=order.id,
         user_email=order.user.email,
@@ -334,4 +337,5 @@ def get_order_summary(
         created_at=order.created_at,
         completed_at=order.completed_at,
         is_industry_specific=order.is_industry_specific,
+        documents=document_summaries,
     )

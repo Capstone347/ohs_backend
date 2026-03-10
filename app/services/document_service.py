@@ -32,11 +32,31 @@ class DocumentService:
         if not order_id:
             raise ValueError("order_id is required for document generation")
         
-        order = self.order_repository.get_by_id_or_fail(order_id)
+        self.order_repository.get_by_id_or_fail(order_id)
+
+        existing_documents = self.document_repository.get_documents_by_order_id(order_id)
+        if existing_documents:
+            return existing_documents[0]
         
         generated_document = self.document_generation_service.generate_manual(order_id)
         
         return generated_document
+
+    def get_documents_by_order(self, order_id: int) -> list[Document]:
+        if not order_id:
+            raise ValueError("order_id is required")
+
+        return self.document_repository.get_documents_by_order_id(order_id)
+
+    def get_latest_document_for_order(self, order_id: int) -> Document:
+        if not order_id:
+            raise ValueError("order_id is required")
+
+        documents = self.document_repository.get_documents_by_order_id(order_id)
+        if not documents:
+            raise FileNotFoundServiceException(f"No documents found for order {order_id}")
+
+        return documents[0]
 
     def get_document_by_id(self, document_id: int) -> Document:
         if not document_id:
@@ -62,29 +82,21 @@ class DocumentService:
             raise ValueError("access_token is required for document download")
         
         document = self.document_repository.get_by_id_or_fail(document_id)
-        
-        if document.access_token != access_token:
-            raise DocumentGenerationServiceException("Invalid access token")
-        
-        now_utc = datetime.now(timezone.utc)
-        token_expiry = document.token_expires_at
-        
-        if token_expiry.tzinfo is None:
-            token_expiry = token_expiry.replace(tzinfo=timezone.utc)
-        
-        if token_expiry < now_utc:
-            raise DocumentGenerationServiceException("Access token has expired")
-        
-        if not document.file_path:
-            raise FileNotFoundServiceException(f"Document {document_id} has no file path")
-        
-        file_path = Path(document.file_path)
-        if not file_path.exists():
-            raise FileNotFoundServiceException(f"Document file not found: {file_path}")
-        
-        self.document_repository.increment_download_count(document_id)
-        
-        return file_path
+        return self._validate_and_resolve_download(document, access_token)
+
+    def get_latest_document_download_path_by_order(self, order_id: int, access_token: str) -> Path:
+        if not order_id:
+            raise ValueError("order_id is required")
+
+        if not access_token:
+            raise ValueError("access_token is required for document download")
+
+        documents = self.document_repository.get_documents_by_order_id(order_id)
+        if not documents:
+            raise FileNotFoundServiceException(f"No documents found for order {order_id}")
+
+        document = documents[0]
+        return self._validate_and_resolve_download(document, access_token)
 
     def validate_access_token(self, access_token: str) -> bool:
         if not access_token:
@@ -99,3 +111,27 @@ class DocumentService:
             return False
         
         return True
+
+    def _validate_and_resolve_download(self, document: Document, access_token: str) -> Path:
+        if document.access_token != access_token:
+            raise DocumentGenerationServiceException("Invalid access token")
+
+        now_utc = datetime.now(timezone.utc)
+        token_expiry = document.token_expires_at
+
+        if token_expiry.tzinfo is None:
+            token_expiry = token_expiry.replace(tzinfo=timezone.utc)
+
+        if token_expiry < now_utc:
+            raise DocumentGenerationServiceException("Access token has expired")
+
+        if not document.file_path:
+            raise FileNotFoundServiceException(f"Document {document.document_id} has no file path")
+
+        file_path = Path(document.file_path)
+        if not file_path.exists():
+            raise FileNotFoundServiceException(f"Document file not found: {file_path}")
+
+        self.document_repository.increment_download_count(document.document_id)
+
+        return file_path

@@ -32,6 +32,7 @@ Our project uses Docker Compose to run multiple services:
 
 1. **MySQL Database** - Stores application data
 2. **FastAPI Application** - Runs the backend API
+3. **Ngrok Tunnel** - Exposes the API publicly for frontend and webhook access
 
 ### Services Breakdown
 
@@ -80,6 +81,38 @@ app:
 - Mounts local directories for hot reload
 - Waits for MySQL to be healthy before starting
 - Runs with auto-reload for development
+
+#### Ngrok Service
+
+```yaml
+ngrok:
+  image: ngrok/ngrok:latest
+  environment:
+    NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+  command: http app:8000 --log stdout
+  ports:
+    - "4040:4040"
+  depends_on:
+    - app
+```
+
+**What this does:**
+- Creates a public HTTPS tunnel to the backend API running on port 8000
+- Exposes ngrok's inspection dashboard on `http://localhost:4040`
+- Reads your auth token from the `NGROK_AUTHTOKEN` environment variable
+- Waits for the app service to start before creating the tunnel
+- The public URL changes on each restart (unless you have a paid ngrok plan with a static domain)
+
+**Setup:**
+1. Sign up at [https://dashboard.ngrok.com](https://dashboard.ngrok.com)
+2. Copy your auth token from the dashboard
+3. Add `NGROK_AUTHTOKEN=your_token` to your `.env.docker` file
+
+**Getting the public URL:**
+- Open the ngrok dashboard at `http://localhost:4040` to see the assigned public URL
+- Or run: `docker-compose logs ngrok` and look for the `Forwarding` line
+- Use this URL as your `APP_BASE_URL` and in your frontend API config
+- Use this URL for external webhook endpoints (e.g., Stripe webhook URL)
 
 ---
 

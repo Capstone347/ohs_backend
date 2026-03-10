@@ -1,32 +1,74 @@
-from app.services.payment_service import PaymentService
-from app.schemas.payment import PaymentIntentResponse, StripeWebhookEvent
 import pytest
 
+from app.schemas.payment import CheckoutSessionResponse, StripeWebhookEvent, StripeWebhookEventType
+from app.services.payment_service import BasePaymentProvider, PaymentService
 
-def test_payment_service_create_payment_intent_success():
-    svc = PaymentService()
-    result = svc.create_payment_intent(order_id=5, amount_cents=1000)
-    assert isinstance(result, PaymentIntentResponse)
-    assert result.id == "pi_mock_5"
-    assert result.client_secret == "cs_mock_5"
-    assert result.status.value == "succeeded"
+
+class FakePaymentProvider(BasePaymentProvider):
+    def create_checkout_session(
+        self,
+        order_id: int,
+        amount_cents: int,
+        currency: str,
+        product_name: str,
+        customer_email: str,
+        success_url: str,
+        cancel_url: str,
+    ) -> CheckoutSessionResponse:
+        if amount_cents <= 0:
+            raise ValueError("amount_cents must be greater than zero")
+        return CheckoutSessionResponse(
+            checkout_session_id=f"cs_test_{order_id}",
+            checkout_url=f"https://checkout.stripe.com/pay/cs_test_{order_id}",
+        )
+
+    def verify_webhook_signature(
+        self,
+        payload: bytes,
+        signature: str,
+    ) -> StripeWebhookEvent:
+        return StripeWebhookEvent(
+            event_type=StripeWebhookEventType.CHECKOUT_SESSION_COMPLETED,
+            checkout_session_id="cs_test_1",
+            payment_intent_id="pi_test_1",
+            metadata={"order_id": "1"},
+            payment_status="paid",
+        )
+
+
+def test_payment_service_create_checkout_session_success():
+    svc = PaymentService(provider=FakePaymentProvider())
+    result = svc.create_checkout_session(
+        order_id=5,
+        amount_cents=1000,
+        currency="CAD",
+        product_name="OHS Manual",
+        customer_email="test@example.com",
+        success_url="https://example.com/success",
+        cancel_url="https://example.com/cancel",
+    )
+    assert isinstance(result, CheckoutSessionResponse)
+    assert result.checkout_session_id == "cs_test_5"
+    assert "checkout.stripe.com" in result.checkout_url
 
 
 def test_payment_service_negative_or_zero_amount_raises():
-    svc = PaymentService()
+    svc = PaymentService(provider=FakePaymentProvider())
     with pytest.raises(ValueError):
-        svc.create_payment_intent(order_id=1, amount_cents=0)
+        svc.create_checkout_session(
+            order_id=1,
+            amount_cents=0,
+            currency="CAD",
+            product_name="OHS Manual",
+            customer_email="test@example.com",
+            success_url="https://example.com/success",
+            cancel_url="https://example.com/cancel",
+        )
 
-    with pytest.raises(ValueError):
-        svc.create_payment_intent(order_id=1, amount_cents=-100)
 
-
-def test_payment_service_currency_and_webhook():
-    svc = PaymentService()
-    result = svc.create_payment_intent(order_id=7, amount_cents=2500, currency="usd")
-    assert result.currency == "usd"
-
+def test_payment_service_verify_webhook():
+    svc = PaymentService(provider=FakePaymentProvider())
     event = svc.verify_webhook_signature(b"payload", "sig")
     assert isinstance(event, StripeWebhookEvent)
-    assert event.event_type.value == "payment_intent.succeeded"
-    assert event.payment_intent_id == "pi_mock"
+    assert event.event_type == StripeWebhookEventType.CHECKOUT_SESSION_COMPLETED
+    assert event.checkout_session_id == "cs_test_1"

@@ -94,20 +94,22 @@ class TestCompleteOrderFlow:
         assert len(response.content) > 0
         print(f"✓ Preview downloaded successfully ({len(response.content)} bytes)")
         
-        # Step 5: Trigger Payment Webhook
-        print("\n[Step 5] Triggering payment webhook...")
+        # Step 5: Trigger Payment Webhook (simulating checkout.session.completed)
+        print("\n[Step 5] Triggering Stripe webhook...")
         webhook_payload = {
-            "event_type": "payment_intent.succeeded",
+            "event_type": "checkout.session.completed",
+            "checkout_session_id": f"cs_test_{int(time.time())}",
             "payment_intent_id": f"pi_test_{int(time.time())}",
             "metadata": {
                 "order_id": str(order_id)
-            }
+            },
+            "payment_status": "paid"
         }
         
         response = requests.post(
-            f"{API_BASE_URL}/webhooks/payment-confirmation",
+            f"{API_BASE_URL}/webhooks/stripe",
             json=webhook_payload,
-            timeout=30  # Give it more time for email sending
+            timeout=30
         )
         # Note: Webhook might timeout due to SMTP, but that's okay for test purposes
         # The important thing is the payment status gets updated

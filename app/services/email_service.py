@@ -10,7 +10,7 @@ from app.config import Settings
 from app.repositories.email_log_repository import EmailLogRepository
 
 EMAIL_REGEX = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
-SMTP_TIMEOUT_SECONDS = 10
+SMTP_TIMEOUT_SECONDS = 30
 
 
 class EmailService:

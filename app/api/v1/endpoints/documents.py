@@ -19,6 +19,29 @@ from app.repositories.base_repository import RecordNotFoundError
 router = APIRouter()
 
 
+@router.get("/orders/{order_id}/documents", response_model=list[DocumentResponse])
+def list_documents_for_order(
+    order_id: int,
+    document_service: DocumentService = Depends(get_document_service),
+) -> list[DocumentResponse]:
+    if order_id <= 0:
+        raise HTTPException(status_code=400, detail="order_id must be greater than 0")
+
+    documents = document_service.get_documents_by_order(order_id)
+    return [
+        DocumentResponse(
+            document_id=doc.document_id,
+            order_id=doc.order_id,
+            file_path=doc.file_path or "",
+            file_format=doc.file_format if doc.file_format else "docx",
+            access_token=doc.access_token,
+            token_expires_at=doc.token_expires_at,
+            generated_at=doc.generated_at,
+        )
+        for doc in documents
+    ]
+
+
 @router.post("/orders/{order_id}/generate-preview", response_model=DocumentGenerateResponse, status_code=201)
 def generate_document_preview(
     order_id: int,
@@ -97,6 +120,35 @@ def download_document(
             path=str(document_path),
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             filename=f"ohs_manual_document_{document_id}.docx"
+        )
+    except RecordNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except FileNotFoundServiceException as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except DocumentGenerationServiceException as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to download document: {str(e)}")
+
+
+@router.get("/orders/{order_id}/download")
+def download_document_by_order(
+    order_id: int,
+    token: str = Query(..., min_length=1, description="Access token for document download"),
+    document_service: DocumentService = Depends(get_document_service),
+) -> FileResponse:
+    if order_id <= 0:
+        raise HTTPException(status_code=400, detail="order_id must be greater than 0")
+
+    try:
+        document_path = document_service.get_latest_document_download_path_by_order(order_id, token)
+
+        return FileResponse(
+            path=str(document_path),
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            filename=f"ohs_manual_order_{order_id}.docx"
         )
     except RecordNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
