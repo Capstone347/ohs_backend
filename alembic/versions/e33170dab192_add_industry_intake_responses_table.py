@@ -1,7 +1,7 @@
 """add_industry_intake_responses_table
 
 Revision ID: e33170dab192
-Revises: b9c822df01c0
+Revises: f3d9f2b7a1c4
 Create Date: 2026-03-01 23:11:21.301277
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'e33170dab192'
-down_revision: Union[str, None] = 'b9c822df01c0'
+down_revision: Union[str, None] = 'f3d9f2b7a1c4'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
