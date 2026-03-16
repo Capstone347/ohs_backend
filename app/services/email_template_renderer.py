@@ -1,7 +1,7 @@
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from app.schemas.email import OrderConfirmationContext, DocumentDeliveryContext
+from app.schemas.email import AuthOtpContext, DocumentDeliveryContext, OrderConfirmationContext
 
 TEMPLATES_DIR = Path(__file__).parent.parent.parent / "templates" / "emails"
 
@@ -27,3 +27,11 @@ class EmailTemplateRenderer:
         
         template = self.env.get_template("document_delivery.html")
         return template.render(**context.model_dump())
+
+    def render_auth_otp(self, context: AuthOtpContext) -> str:
+        if not self.templates_dir.exists():
+            raise FileNotFoundError(f"templates directory not found: {self.templates_dir}")
+
+        template = self.env.get_template("otp_request.html")
+        return template.render(**context.model_dump())
+

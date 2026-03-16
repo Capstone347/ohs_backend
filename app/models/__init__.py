@@ -21,6 +21,7 @@ from .naics_code import NAICSCode
 from .naics_user_content import NAICSUserContent
 from .order_status import OrderStatus, OrderStatusEnum, PaymentStatus
 from .industry_intake_response import IndustryIntakeResponse
+from .auth_otp_request import AuthOtpRequest
 
 __all__ = [
     "Plan",
@@ -46,4 +47,5 @@ __all__ = [
     "OrderStatusEnum", 
     "PaymentStatus",
     "IndustryIntakeResponse",
+    "AuthOtpRequest",
 ]

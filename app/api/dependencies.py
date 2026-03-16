@@ -13,6 +13,7 @@ from app.repositories.document_repository import DocumentRepository
 from app.repositories.legal_acknowledgment_repository import LegalAcknowledgmentRepository
 from app.repositories.industry_intake_response_repository import IndustryIntakeResponseRepository
 from app.repositories.email_log_repository import EmailLogRepository
+from app.repositories.auth_otp_request_repository import AuthOtpRequestRepository
 from app.services.order_service import OrderService
 from app.services.validation_service import ValidationService
 from app.services.file_storage_service import FileStorageService
@@ -24,6 +25,7 @@ from app.services.industry_intake_service import IndustryIntakeService
 from app.services.email_service import EmailService
 from app.services.email_template_renderer import EmailTemplateRenderer
 from app.services.payment_service import PaymentService
+from app.services.auth_service import AuthService
 from app.services.stripe_provider import StripePaymentProvider
 from app.config import settings
 
@@ -66,6 +68,10 @@ def get_legal_acknowledgment_repository(db: Session = Depends(get_db)) -> LegalA
 
 def get_email_log_repository(db: Session = Depends(get_db)) -> EmailLogRepository:
     return EmailLogRepository(db)
+
+
+def get_auth_otp_request_repository(db: Session = Depends(get_db)) -> AuthOtpRequestRepository:
+    return AuthOtpRequestRepository(db)
 
 
 def get_validation_service() -> ValidationService:
@@ -165,6 +171,21 @@ def get_email_service(
     email_log_repo: EmailLogRepository = Depends(get_email_log_repository),
 ) -> EmailService:
     return EmailService(email_log_repo, settings)
+
+
+def get_auth_service(
+    auth_otp_request_repo: AuthOtpRequestRepository = Depends(get_auth_otp_request_repository),
+    user_repo: UserRepository = Depends(get_user_repository),
+    email_service: EmailService = Depends(get_email_service),
+    email_template_renderer: EmailTemplateRenderer = Depends(get_email_template_renderer),
+) -> AuthService:
+    return AuthService(
+        auth_otp_request_repo=auth_otp_request_repo,
+        user_repo=user_repo,
+        email_service=email_service,
+        email_template_renderer=email_template_renderer,
+        settings=settings,
+    )
 
 
 def get_stripe_payment_provider() -> StripePaymentProvider:

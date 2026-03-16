@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     stripe_api_key: str = Field(...)
     stripe_publishable_key: str = Field(...)
     stripe_webhook_secret: str = Field(...)
+
+    auth_otp_ttl_minutes: int = Field(default=10, gt=0)
+    auth_otp_resend_cooldown_seconds: int = Field(default=60, ge=0)
+    auth_otp_email_rate_limit_count: int = Field(default=5, gt=0)
+    auth_otp_ip_rate_limit_count: int = Field(default=6, gt=0)
+    auth_otp_rate_limit_window_minutes: int = Field(default=15, gt=0)
+    auth_otp_lockout_minutes: int = Field(default=15, gt=0)
     
     app_base_url: str = Field(default="http://localhost:8000")
     frontend_url: str = Field(default="http://localhost:8080")
