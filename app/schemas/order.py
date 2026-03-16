@@ -74,6 +74,50 @@ class DocumentSummary(BaseModel):
         from_attributes = True
 
 
+class OrderListItem(BaseModel):
+    order_id: int
+    created_at: datetime
+    order_status: OrderStatusEnum
+    payment_status: PaymentStatus
+    total_amount: Decimal
+    currency: str
+    jurisdiction: str
+    company_name: str | None
+    plan_name: str | None
+    naics_codes: list[str]
+
+
+class PaginatedOrdersResponse(BaseModel):
+    items: list[OrderListItem]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+class TimelineEntry(BaseModel):
+    step: str
+    status: str
+    timestamp: datetime | None
+
+
+class OrderDetailResponse(BaseModel):
+    order_id: int
+    created_at: datetime
+    completed_at: datetime | None
+    jurisdiction: str
+    total_amount: Decimal
+    is_industry_specific: bool
+    company: CompanyDetailsResponse | None
+    plan_name: str | None
+    order_status: OrderStatusEnum
+    payment_status: PaymentStatus
+    currency: str
+    documents: list[DocumentSummary]
+    timeline: list[TimelineEntry]
+    naics_codes: list[str]
+
+
 class OrderSummaryResponse(BaseModel):
     order_id: int = Field(..., example=1)
     user_email: str = Field(..., example="customer@example.com")

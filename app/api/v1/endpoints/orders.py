@@ -16,12 +16,17 @@ from app.api.dependencies import (
     get_db,
 )
 from app.repositories.base_repository import RecordNotFoundError
+from app.models.order_status import OrderStatusEnum, PaymentStatus
 from app.schemas.order import (
     OrderCreateRequest,
     OrderCreatedResponse,
     OrderSummaryResponse,
     CompanyDetailsResponse,
     DocumentSummary,
+    OrderListItem,
+    PaginatedOrdersResponse,
+    TimelineEntry,
+    OrderDetailResponse,
 )
 from app.services.order_service import OrderService
 from app.services.file_storage_service import FileStorageService
@@ -310,6 +315,159 @@ def get_order_summary(
         company_details = build_company_details_response(order.company)
     
     return _build_order_summary(order, company_details)
+
+
+@router.get(
+    "",
+    response_model=PaginatedOrdersResponse,
+    status_code=status.HTTP_200_OK,
+    summary="List orders for a user",
+)
+def list_orders(
+    user_id: int,
+    query: str | None = None,
+    order_status: OrderStatusEnum | None = None,
+    page: int = 1,
+    page_size: int = 20,
+    order_service: OrderService = Depends(get_order_service),
+) -> PaginatedOrdersResponse:
+    try:
+        orders, total = order_service.list_user_orders(
+            user_id=user_id,
+            page=page,
+            page_size=page_size,
+            order_status=order_status,
+            query=query,
+        )
+    except RecordNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User {user_id} not found",
+        )
+
+    items = [_build_order_list_item(order) for order in orders]
+    total_pages = max(1, -(-total // page_size))
+
+    return PaginatedOrdersResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
+
+
+@router.get(
+    "/{order_id}",
+    response_model=OrderDetailResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get full order detail",
+)
+def get_order_detail(
+    order_id: int,
+    user_id: int,
+    order_service: OrderService = Depends(get_order_service),
+) -> OrderDetailResponse:
+    try:
+        order = order_service.get_order_with_relations(order_id)
+    except RecordNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Order {order_id} not found",
+        )
+
+    if order.user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Order {order_id} not found",
+        )
+
+    return _build_order_detail(order)
+
+
+def _build_order_list_item(order) -> OrderListItem:
+    profile = order.company.industry_profile if order.company else None
+    naics_codes = [entry.code for entry in profile.naics_codes] if profile else []
+
+    return OrderListItem(
+        order_id=order.id,
+        created_at=order.created_at,
+        order_status=order.order_status.order_status,
+        payment_status=order.order_status.payment_status,
+        total_amount=order.total_amount,
+        currency=order.order_status.currency,
+        jurisdiction=order.jurisdiction,
+        company_name=order.company.name if order.company else None,
+        plan_name=order.plan.name if order.plan else None,
+        naics_codes=naics_codes,
+    )
+
+
+def _build_order_detail(order) -> OrderDetailResponse:
+    company_details = build_company_details_response(order.company) if order.company else None
+
+    profile = order.company.industry_profile if order.company else None
+    naics_codes = [entry.code for entry in profile.naics_codes] if profile else []
+
+    document_summaries = [
+        DocumentSummary(
+            document_id=doc.document_id,
+            access_token=doc.access_token,
+            token_expires_at=doc.token_expires_at,
+            generated_at=doc.generated_at,
+            file_format=doc.file_format or "docx",
+        )
+        for doc in (order.documents or [])
+    ]
+
+    return OrderDetailResponse(
+        order_id=order.id,
+        created_at=order.created_at,
+        completed_at=order.completed_at,
+        jurisdiction=order.jurisdiction,
+        total_amount=order.total_amount,
+        is_industry_specific=order.is_industry_specific,
+        company=company_details,
+        plan_name=order.plan.name if order.plan else None,
+        order_status=order.order_status.order_status,
+        payment_status=order.order_status.payment_status,
+        currency=order.order_status.currency,
+        documents=document_summaries,
+        timeline=_build_timeline(order),
+        naics_codes=naics_codes,
+    )
+
+
+def _build_timeline(order) -> list[TimelineEntry]:
+    order_status_val = order.order_status.order_status
+    payment_status_val = order.order_status.payment_status
+
+    payment_done = payment_status_val == PaymentStatus.PAID.value
+    processing_done = order_status_val in {OrderStatusEnum.PROCESSING.value, OrderStatusEnum.AVAILABLE.value}
+    completed_done = order_status_val == OrderStatusEnum.AVAILABLE.value
+
+    return [
+        TimelineEntry(
+            step="Order Placed",
+            status="completed",
+            timestamp=order.created_at,
+        ),
+        TimelineEntry(
+            step="Payment",
+            status="completed" if payment_done else "pending",
+            timestamp=None,
+        ),
+        TimelineEntry(
+            step="Processing",
+            status="completed" if processing_done else "pending",
+            timestamp=None,
+        ),
+        TimelineEntry(
+            step="Completed",
+            status="completed" if completed_done else "pending",
+            timestamp=order.completed_at,
+        ),
+    ]
 
 
 def _build_order_summary(order, company_details: CompanyDetailsResponse | None) -> OrderSummaryResponse:
