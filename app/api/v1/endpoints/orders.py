@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import (
+    get_authenticated_user_context,
     get_order_service,
     get_company_repository,
     get_company_logo_repository,
@@ -295,6 +296,7 @@ async def update_company_details(
 def get_order_summary(
     order_id: int,
     order_service: OrderService = Depends(get_order_service),
+    current_user: dict[str, int | str] = Depends(get_authenticated_user_context),
 ) -> OrderSummaryResponse:
     if order_id <= 0:
         raise HTTPException(
@@ -310,6 +312,12 @@ def get_order_summary(
             detail=f"Order {order_id} not found"
         )
     
+    if not order.user or order.user.email != current_user["email"]:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Order {order_id} not found"
+        )
+
     company_details = None
     if order.company:
         company_details = build_company_details_response(order.company)
