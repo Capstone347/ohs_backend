@@ -626,19 +626,15 @@ def create_comprehensive_manual_template():
 def main():
     templates_dir = Path(__file__).parent.parent / "templates" / "documents"
     templates_dir.mkdir(parents=True, exist_ok=True)
-    
-    print("Generating Basic Manual Template...")
-    basic_doc = create_basic_manual_template()
-    basic_path = templates_dir / "basic_manual_template.docx"
-    basic_doc.save(str(basic_path))
-    print(f"✓ Created: {basic_path}")
-    
+
+    print("Skipping Basic Manual Template (uses real client template via preprocess_real_template.py)")
+
     print("\nGenerating Comprehensive Manual Template...")
     comprehensive_doc = create_comprehensive_manual_template()
     comprehensive_path = templates_dir / "comprehensive_manual_template.docx"
     comprehensive_doc.save(str(comprehensive_path))
     print(f"✓ Created: {comprehensive_path}")
-    
+
     print("\n✓ All templates created successfully!")
     print(f"\nTemplates location: {templates_dir}")
 

@@ -41,34 +41,51 @@ class TemplateLoader:
         return template_path
 
 
+def _replace_in_paragraph(paragraph, target: str, replacement: str) -> bool:
+    if paragraph.runs:
+        full_text = "".join(run.text for run in paragraph.runs)
+        if target not in full_text:
+            return False
+        new_text = full_text.replace(target, replacement)
+        for i, run in enumerate(paragraph.runs):
+            run.text = new_text if i == 0 else ""
+        return True
+    elif target in paragraph.text:
+        paragraph.text = paragraph.text.replace(target, replacement)
+        return True
+    return False
+
+
+def _replace_in_paragraphs(paragraphs, placeholder: str, value: str) -> None:
+    for paragraph in paragraphs:
+        if placeholder in paragraph.text:
+            _replace_in_paragraph(paragraph, placeholder, value)
+
+
+def _replace_in_tables(tables, placeholder: str, value: str) -> None:
+    for table in tables:
+        for row in table.rows:
+            for cell in row.cells:
+                _replace_in_paragraphs(cell.paragraphs, placeholder, value)
+
+
 def replace_template_variables(doc: Document, replacements: dict[str, str]) -> Document:
     if not doc:
         raise ValueError("Document cannot be None")
-    
+
     if not replacements:
         raise ValueError("Replacements dictionary cannot be empty")
-    
-    for paragraph in doc.paragraphs:
-        for key, value in replacements.items():
-            placeholder = f"{{{{{key}}}}}"
-            if placeholder in paragraph.text:
-                inline = paragraph.runs
-                for run in inline:
-                    if placeholder in run.text:
-                        run.text = run.text.replace(placeholder, value)
-    
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                for paragraph in cell.paragraphs:
-                    for key, value in replacements.items():
-                        placeholder = f"{{{{{key}}}}}"
-                        if placeholder in paragraph.text:
-                            inline = paragraph.runs
-                            for run in inline:
-                                if placeholder in run.text:
-                                    run.text = run.text.replace(placeholder, value)
-    
+
+    for key, value in replacements.items():
+        placeholder = f"{{{{{key}}}}}"
+        _replace_in_paragraphs(doc.paragraphs, placeholder, value)
+        _replace_in_tables(doc.tables, placeholder, value)
+
+        for section in doc.sections:
+            for header_footer in [section.header, section.footer]:
+                _replace_in_paragraphs(header_footer.paragraphs, placeholder, value)
+                _replace_in_tables(header_footer.tables, placeholder, value)
+
     return doc
 
 
@@ -124,25 +141,38 @@ def insert_company_logo(doc: Document, logo_path: Path, placeholder: str = "{{lo
     
     logo_inserted = False
     
+    def _insert_in_paragraph(paragraph) -> bool:
+        if placeholder not in paragraph.text:
+            return False
+        _replace_in_paragraph(paragraph, placeholder, "")
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = paragraph.add_run()
+        run.add_picture(io.BytesIO(logo_bytes), width=Inches(width_inches))
+        return True
+
     for paragraph in doc.paragraphs:
-        if placeholder in paragraph.text:
-            paragraph.text = paragraph.text.replace(placeholder, "")
-            paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run = paragraph.add_run()
-            run.add_picture(io.BytesIO(logo_bytes), width=Inches(width_inches))
+        if _insert_in_paragraph(paragraph):
             logo_inserted = True
-    
+
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
                 for paragraph in cell.paragraphs:
-                    if placeholder in paragraph.text:
-                        paragraph.text = paragraph.text.replace(placeholder, "")
-                        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                        run = paragraph.add_run()
-                        run.add_picture(io.BytesIO(logo_bytes), width=Inches(width_inches))
+                    if _insert_in_paragraph(paragraph):
                         logo_inserted = True
-    
+
+    for section in doc.sections:
+        for header_footer in [section.header, section.footer]:
+            for paragraph in header_footer.paragraphs:
+                if _insert_in_paragraph(paragraph):
+                    logo_inserted = True
+            for table in header_footer.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        for paragraph in cell.paragraphs:
+                            if _insert_in_paragraph(paragraph):
+                                logo_inserted = True
+
     if not logo_inserted:
         raise ValueError(f"Logo placeholder '{placeholder}' not found in document")
     
