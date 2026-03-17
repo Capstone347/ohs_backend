@@ -1,3 +1,6 @@
+import base64
+import binascii
+import json
 from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
@@ -94,6 +97,61 @@ class AuthService:
         except Exception:
             return
 
+    def verify_otp(self, email: str, otp_code: str) -> dict[str, str | dict[str, int | str]]:
+        if not email:
+            raise ValueError("email is required")
+
+        if not otp_code:
+            raise ValueError("otp_code is required")
+
+        now = datetime.now(timezone.utc)
+        normalized_email = email.strip().lower()
+        normalized_otp = otp_code.strip()
+
+        otp_request = self.auth_otp_request_repo.get_latest_by_email(normalized_email)
+        if not otp_request:
+            raise ValueError("invalid authentication")
+
+        if otp_request.lockout_until and now < self._to_utc(otp_request.lockout_until):
+            raise ValueError("invalid authentication")
+
+        if now > self._to_utc(otp_request.expires_at):
+            raise ValueError("invalid authentication")
+
+        current_attempt_count = int(otp_request.attempt_count or 0)
+        if current_attempt_count >= self.settings.auth_otp_max_verify_attempts:
+            otp_request.expires_at = now
+            self.auth_otp_request_repo.update(otp_request)
+            raise ValueError("invalid authentication")
+
+        expected_hash = self._hash_otp_code(normalized_otp)
+        if not hmac.compare_digest(expected_hash, otp_request.otp_hash):
+            otp_request.attempt_count = current_attempt_count + 1
+            if otp_request.attempt_count >= self.settings.auth_otp_max_verify_attempts:
+                otp_request.expires_at = now
+            self.auth_otp_request_repo.update(otp_request)
+            raise ValueError("invalid authentication")
+
+        otp_request.expires_at = now
+        otp_request.attempt_count = 0
+        self.auth_otp_request_repo.update(otp_request)
+
+        user = self.user_repo.get_by_email(normalized_email)
+        if not user:
+            derived_name = normalized_email.split("@")[0] or normalized_email
+            user = self.user_repo.create_user(email=normalized_email, full_name=derived_name)
+
+        user = self.user_repo.update_last_login(user.id, now)
+        session_token = self._build_session_token(user.id, user.email, now)
+
+        return {
+            "session_token": session_token,
+            "user": {
+                "id": int(user.id),
+                "email": str(user.email),
+            },
+        }
+
     def _get_next_attempt_count(
         self,
         otp_request_created_at: datetime | None,
@@ -124,6 +182,77 @@ class AuthService:
         secret_key_bytes = self.settings.secret_key.encode("utf-8")
         otp_code_bytes = otp_code.encode("utf-8")
         return hmac.new(secret_key_bytes, otp_code_bytes, hashlib.sha256).hexdigest()
+
+    def _build_session_token(self, user_id: int, email: str, issued_at: datetime) -> str:
+        expires_at = issued_at + timedelta(minutes=self.settings.auth_session_expiry_minutes)
+        payload = {
+            "user_id": user_id,
+            "email": email,
+            "issued_at": issued_at.isoformat(),
+            "expiry": expires_at.isoformat(),
+            "audience": self.settings.auth_session_audience,
+        }
+        payload_json = json.dumps(payload, separators=(",", ":"), sort_keys=True)
+        payload_bytes = payload_json.encode("utf-8")
+        payload_b64 = base64.urlsafe_b64encode(payload_bytes).decode("utf-8").rstrip("=")
+        signature = hmac.new(
+            self.settings.secret_key.encode("utf-8"),
+            payload_b64.encode("utf-8"),
+            hashlib.sha256,
+        ).digest()
+        signature_b64 = base64.urlsafe_b64encode(signature).decode("utf-8").rstrip("=")
+        return f"{payload_b64}.{signature_b64}"
+
+    def get_authenticated_user(self, session_token: str | None) -> dict[str, int | str]:
+        if not session_token:
+            raise ValueError("invalid auth session")
+
+        try:
+            payload_segment, signature_segment = session_token.split(".", 1)
+        except ValueError:
+            raise ValueError("invalid auth session")
+
+        expected_signature = hmac.new(
+            self.settings.secret_key.encode("utf-8"),
+            payload_segment.encode("utf-8"),
+            hashlib.sha256,
+        ).digest()
+        expected_signature_b64 = base64.urlsafe_b64encode(expected_signature).decode("utf-8").rstrip("=")
+        if not hmac.compare_digest(signature_segment, expected_signature_b64):
+            raise ValueError("invalid auth session")
+
+        payload = self._decode_session_payload(payload_segment)
+        if payload.get("audience") != self.settings.auth_session_audience:
+            raise ValueError("invalid auth session")
+
+        expiry = payload.get("expiry")
+        if not expiry:
+            raise ValueError("invalid auth session")
+
+        expires_at = datetime.fromisoformat(str(expiry))
+        if datetime.now(timezone.utc) > self._to_utc(expires_at):
+            raise ValueError("invalid auth session")
+
+        email = payload.get("email")
+        if not isinstance(email, str) or not email:
+            raise ValueError("invalid auth session")
+
+        user = self.user_repo.get_by_email(email)
+        if not user:
+            raise ValueError("invalid auth session")
+
+        return {
+            "id": int(user.id),
+            "email": str(user.email),
+        }
+
+    def _decode_session_payload(self, payload_segment: str) -> dict[str, object]:
+        padded_segment = payload_segment + "=" * (-len(payload_segment) % 4)
+        try:
+            decoded_bytes = base64.urlsafe_b64decode(padded_segment.encode("utf-8"))
+            return json.loads(decoded_bytes.decode("utf-8"))
+        except (ValueError, json.JSONDecodeError, UnicodeDecodeError, binascii.Error):
+            raise ValueError("invalid auth session")
 
     def _to_utc(self, value: datetime) -> datetime:
         if value.tzinfo is None:
