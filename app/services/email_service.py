@@ -68,6 +68,26 @@ class EmailService:
             )
             raise
 
+    def send_transactional_email(
+        self,
+        recipient_email: str,
+        subject: str,
+        html_body: str,
+    ) -> None:
+        if not recipient_email:
+            raise ValueError("recipient_email is required")
+
+        if not subject:
+            raise ValueError("subject is required")
+
+        if not html_body:
+            raise ValueError("html_body is required")
+
+        if not self._is_valid_email(recipient_email):
+            raise ValueError(f"invalid email format: {recipient_email}")
+
+        self._send_smtp_message(recipient_email, subject, html_body, None)
+
     def _is_valid_email(self, email: str) -> bool:
         return bool(re.match(EMAIL_REGEX, email))
 

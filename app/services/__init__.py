@@ -5,6 +5,7 @@ from .order_service import OrderService
 from .payment_service import PaymentService
 from .stripe_provider import StripePaymentProvider
 from .validation_service import ValidationService
+from .auth_service import AuthService
 
 __all__ = [
     "EmailService",
@@ -14,4 +15,5 @@ __all__ = [
     "PaymentService",
     "StripePaymentProvider",
     "ValidationService",
+    "AuthService",
 ]

@@ -15,3 +15,10 @@ class DocumentDeliveryContext(BaseModel):
     company_name: str = Field(..., min_length=1)
     download_link: str = Field(..., min_length=1)
     document_name: str = Field(..., min_length=1)
+
+
+class AuthOtpContext(BaseModel):
+    otp_code: str = Field(..., min_length=6, max_length=8)
+    expires_in_minutes: int = Field(..., gt=0)
+    recipient_email: str = Field(..., min_length=3)
+
