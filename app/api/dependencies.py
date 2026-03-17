@@ -1,4 +1,4 @@
-from fastapi import Depends
+from fastapi import Cookie, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
@@ -186,6 +186,24 @@ def get_auth_service(
         email_template_renderer=email_template_renderer,
         settings=settings,
     )
+
+
+def get_authenticated_user_context(
+    request: Request,
+    auth_session: str | None = Cookie(default=None),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> dict[str, int | str]:
+    try:
+        user_data = auth_service.get_authenticated_user(auth_session)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid auth session",
+        )
+
+    request.state.user_id = user_data["id"]
+    request.state.user_email = user_data["email"]
+    return user_data
 
 
 def get_stripe_payment_provider() -> StripePaymentProvider:

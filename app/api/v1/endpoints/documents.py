@@ -3,7 +3,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 
-from app.api.dependencies import get_document_service
+from app.api.dependencies import get_authenticated_user_context, get_document_service
 from app.services.document_service import DocumentService
 from app.schemas.document import (
     DocumentGenerateResponse,
@@ -19,13 +19,22 @@ from app.repositories.base_repository import RecordNotFoundError
 router = APIRouter()
 
 
+def _enforce_order_access(order_id: int, user_email: str, document_service: DocumentService) -> None:
+    order = document_service.order_repository.get_by_id_with_relations(order_id)
+    if not order or not order.user or order.user.email != user_email:
+        raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
+
+
 @router.get("/orders/{order_id}/documents", response_model=list[DocumentResponse])
 def list_documents_for_order(
     order_id: int,
     document_service: DocumentService = Depends(get_document_service),
+    current_user: dict[str, int | str] = Depends(get_authenticated_user_context),
 ) -> list[DocumentResponse]:
     if order_id <= 0:
         raise HTTPException(status_code=400, detail="order_id must be greater than 0")
+
+    _enforce_order_access(order_id, str(current_user["email"]), document_service)
 
     documents = document_service.get_documents_by_order(order_id)
     return [
@@ -138,9 +147,12 @@ def download_document_by_order(
     order_id: int,
     token: str = Query(..., min_length=1, description="Access token for document download"),
     document_service: DocumentService = Depends(get_document_service),
+    current_user: dict[str, int | str] = Depends(get_authenticated_user_context),
 ) -> FileResponse:
     if order_id <= 0:
         raise HTTPException(status_code=400, detail="order_id must be greater than 0")
+
+    _enforce_order_access(order_id, str(current_user["email"]), document_service)
 
     try:
         document_path = document_service.get_latest_document_download_path_by_order(order_id, token)
