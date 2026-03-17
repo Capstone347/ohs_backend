@@ -1,10 +1,11 @@
 from datetime import datetime
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.company import Company
 from app.models.industry_profile import IndustryProfile
 from app.models.order import Order
-from app.models.order_status import OrderStatusEnum, PaymentStatus
+from app.models.order_status import OrderStatus, OrderStatusEnum, PaymentStatus
 from app.repositories.base_repository import BaseRepository
 
 
@@ -168,6 +169,59 @@ class OrderRepository(BaseRepository[Order]):
             .order_by(Order.created_at.desc())
             .all()
         )
+
+    def get_paginated_by_user_id(
+        self,
+        user_id: int,
+        skip: int,
+        limit: int,
+        order_status: OrderStatusEnum | None = None,
+        query: str | None = None,
+    ) -> tuple[list[Order], int]:
+        base_filter = [Order.user_id == user_id]
+
+        needs_status_join = order_status is not None
+        needs_company_join = query is not None and not query.isdigit()
+
+        if query is not None:
+            if query.isdigit():
+                base_filter.append(Order.id == int(query))
+            else:
+                base_filter.append(Company.name.ilike(f"%{query}%"))
+
+        if order_status is not None:
+            base_filter.append(OrderStatus.order_status == order_status.value)
+
+        count_q = select(func.count()).select_from(Order)
+        if needs_status_join:
+            count_q = count_q.join(OrderStatus, Order.id == OrderStatus.order_id)
+        if needs_company_join:
+            count_q = count_q.join(Company, Order.company_id == Company.id)
+        count_q = count_q.where(*base_filter)
+        total = self.db.execute(count_q).scalar_one()
+
+        list_q = self.db.query(Order)
+        if needs_status_join:
+            list_q = list_q.join(OrderStatus, Order.id == OrderStatus.order_id)
+        if needs_company_join:
+            list_q = list_q.join(Company, Order.company_id == Company.id)
+        list_q = (
+            list_q.options(
+                joinedload(Order.order_status),
+                joinedload(Order.company)
+                .joinedload(Company.industry_profile)
+                .joinedload(IndustryProfile.naics_codes),
+                joinedload(Order.plan),
+                joinedload(Order.documents),
+            )
+            .filter(*base_filter)
+            .order_by(Order.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        results = list_q.all()
+
+        return results, total
 
     def get_orders_by_jurisdiction(self, jurisdiction: str) -> list[Order]:
         if not jurisdiction:

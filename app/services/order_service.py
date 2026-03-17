@@ -243,6 +243,35 @@ class OrderService:
         
         return self.order_repo.get_orders_by_jurisdiction(jurisdiction)
 
+    def list_user_orders(
+        self,
+        user_id: int,
+        page: int,
+        page_size: int,
+        order_status: OrderStatusEnum | None,
+        query: str | None,
+    ) -> tuple[list[Order], int]:
+        if user_id <= 0:
+            raise OrderServiceException("user_id must be greater than 0")
+
+        if page < 1:
+            raise OrderServiceException("page must be at least 1")
+
+        if not (1 <= page_size <= 100):
+            raise OrderServiceException("page_size must be between 1 and 100")
+
+        self.user_repo.get_by_id_or_fail(user_id)
+
+        skip = (page - 1) * page_size
+
+        return self.order_repo.get_paginated_by_user_id(
+            user_id=user_id,
+            skip=skip,
+            limit=page_size,
+            order_status=order_status,
+            query=query,
+        )
+
     def calculate_order_total(self, plan_id: int, is_industry_specific: bool = False) -> Decimal:
         if not plan_id:
             raise OrderServiceException("plan_id is required")
