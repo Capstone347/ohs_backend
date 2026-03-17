@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     auth_otp_ip_rate_limit_count: int = Field(default=6, gt=0)
     auth_otp_rate_limit_window_minutes: int = Field(default=15, gt=0)
     auth_otp_lockout_minutes: int = Field(default=15, gt=0)
+    auth_otp_max_verify_attempts: int = Field(default=5, gt=0)
+    auth_session_expiry_minutes: int = Field(default=60, gt=0)
+    auth_session_audience: str = Field(default="ohs-remote-auth")
     
     app_base_url: str = Field(default="http://localhost:8000")
     frontend_url: str = Field(default="http://localhost:8080")

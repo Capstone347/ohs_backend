@@ -253,3 +253,57 @@ def test_logout_invalidates_session_cookie(client: TestClient):
     assert "auth_session=" in set_cookie_header
     assert "max-age=0" in set_cookie_header.lower() or "expires=" in set_cookie_header.lower()
 
+
+def test_auth_me_returns_user_for_valid_session_cookie(client: TestClient, db_session: Session):
+    email = "session-user@example.com"
+    otp_code = "123456"
+    _insert_otp_request(
+        db_session,
+        email=email,
+        otp_code=otp_code,
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+    )
+
+    verify_response = client.post(
+        "/api/v1/auth/verify-otp",
+        json={"email": email, "otp": otp_code},
+    )
+    assert verify_response.status_code == 200
+
+    me_response = client.get("/api/v1/auth/me")
+    assert me_response.status_code == 200
+    assert me_response.json()["email"] == email
+    assert "id" in me_response.json()
+
+
+def test_auth_me_fails_without_session_cookie(client: TestClient):
+    response = client.get("/api/v1/auth/me")
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid auth session"
+
+
+def test_auth_me_fails_after_logout(client: TestClient, db_session: Session):
+    email = "session-logout@example.com"
+    otp_code = "123456"
+    _insert_otp_request(
+        db_session,
+        email=email,
+        otp_code=otp_code,
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+    )
+
+    verify_response = client.post(
+        "/api/v1/auth/verify-otp",
+        json={"email": email, "otp": otp_code},
+    )
+    assert verify_response.status_code == 200
+
+    logout_response = client.post("/api/v1/auth/logout")
+    assert logout_response.status_code == 200
+
+    me_response = client.get("/api/v1/auth/me")
+    assert me_response.status_code == 401
+    assert me_response.json()["detail"] == "Invalid auth session"
+
+

@@ -17,7 +17,13 @@ from .legal import (
 )
 from .responses import ErrorResponse, SuccessResponse, ErrorCode
 from .email import OrderConfirmationContext, DocumentDeliveryContext
-from .auth import RequestOtpRequest, RequestOtpResponse
+from .auth import (
+	AuthenticatedUserResponse,
+	RequestOtpRequest,
+	RequestOtpResponse,
+	VerifyOtpRequest,
+	VerifyOtpResponse,
+)
 
 __all__ = [
 	"HealthCheckResponse",
@@ -44,4 +50,7 @@ __all__ = [
 	"DocumentDeliveryContext",
 	"RequestOtpRequest",
 	"RequestOtpResponse",
+	"VerifyOtpRequest",
+	"VerifyOtpResponse",
+	"AuthenticatedUserResponse",
 ]
