@@ -55,6 +55,7 @@ logs/
 # Data Directory (Phase 1 - local storage)
 data/uploads/
 data/documents/
+data/test_output/
 
 # Testing
 .pytest_cache/

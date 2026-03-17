@@ -59,6 +59,8 @@ class DocumentGenerationService:
                 doc = insert_company_logo(doc, company_logo)
             except ValueError:
                 pass
+        else:
+            doc = replace_template_variables(doc, {"logo": ""})
         
         output_path = self._generate_output_path(order_id)
         doc.save(str(output_path))

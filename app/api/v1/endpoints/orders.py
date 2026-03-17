@@ -205,7 +205,7 @@ async def update_company_details(
             detail="province is required"
         )
     
-    if not naics_codes or not naics_codes.strip():
+    if not naics_codes or not any(code.strip() for code in naics_codes):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="naics_codes is required"
