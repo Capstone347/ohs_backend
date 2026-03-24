@@ -19,9 +19,9 @@ from app.repositories.base_repository import RecordNotFoundError
 router = APIRouter()
 
 
-def _enforce_order_access(order_id: int, user_email: str, document_service: DocumentService) -> None:
+def _enforce_order_access(order_id: int, user_id: int | str, document_service: DocumentService) -> None:
     order = document_service.order_repository.get_by_id_with_relations(order_id)
-    if not order or not order.user or order.user.email != user_email:
+    if not order or order.user_id != user_id:
         raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
 
 
@@ -34,7 +34,7 @@ def list_documents_for_order(
     if order_id <= 0:
         raise HTTPException(status_code=400, detail="order_id must be greater than 0")
 
-    _enforce_order_access(order_id, str(current_user["email"]), document_service)
+    _enforce_order_access(order_id, current_user["id"], document_service)
 
     documents = document_service.get_documents_by_order(order_id)
     return [
@@ -152,7 +152,7 @@ def download_document_by_order(
     if order_id <= 0:
         raise HTTPException(status_code=400, detail="order_id must be greater than 0")
 
-    _enforce_order_access(order_id, str(current_user["email"]), document_service)
+    _enforce_order_access(order_id, current_user["id"], document_service)
 
     try:
         document_path = document_service.get_latest_document_download_path_by_order(order_id, token)
@@ -172,6 +172,36 @@ def download_document_by_order(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to download document: {str(e)}")
+
+
+@router.post(
+    "/documents/{document_id}/refresh-token",
+    response_model=DocumentResponse,
+    status_code=200,
+    summary="Refresh an expired document access token",
+)
+def refresh_document_token(
+    document_id: int,
+    document_service: DocumentService = Depends(get_document_service),
+    current_user: dict[str, int | str] = Depends(get_authenticated_user_context),
+) -> DocumentResponse:
+    try:
+        document = document_service.get_document_by_id(document_id)
+    except RecordNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+
+    _enforce_order_access(document.order_id, current_user["id"], document_service)
+
+    refreshed = document_service.refresh_access_token(document_id)
+    return DocumentResponse(
+        document_id=refreshed.document_id,
+        order_id=refreshed.order_id,
+        file_path=refreshed.file_path or "",
+        file_format=refreshed.file_format if refreshed.file_format else "docx",
+        access_token=refreshed.access_token,
+        token_expires_at=refreshed.token_expires_at,
+        generated_at=refreshed.generated_at,
+    )
 
 
 @router.get("/documents/{document_id}", response_model=DocumentResponse)

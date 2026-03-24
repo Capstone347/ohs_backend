@@ -1,5 +1,6 @@
+import secrets
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from datetime import datetime, timezone
 
 from app.models.document import Document
 from app.repositories.document_repository import DocumentRepository
@@ -111,6 +112,20 @@ class DocumentService:
             return False
         
         return True
+
+    def refresh_access_token(self, document_id: int) -> Document:
+        if not document_id:
+            raise ValueError("document_id is required")
+
+        document = self.document_repository.get_by_id_or_fail(document_id)
+        new_token = secrets.token_hex(32)
+        new_expiry = datetime.now(timezone.utc) + timedelta(days=30)
+
+        return self.document_repository.update_access_token(
+            document_id=document.document_id,
+            access_token=new_token,
+            token_expires_at=new_expiry,
+        )
 
     def _validate_and_resolve_download(self, document: Document, access_token: str) -> Path:
         if document.access_token != access_token:
