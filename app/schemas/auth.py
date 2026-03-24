@@ -45,6 +45,7 @@ class VerifyOtpRequest(BaseModel):
 class AuthenticatedUserResponse(BaseModel):
     id: int = Field(..., gt=0)
     email: str = Field(..., min_length=3)
+    full_name: str = Field(..., min_length=1)
 
 
 class VerifyOtpResponse(BaseModel):

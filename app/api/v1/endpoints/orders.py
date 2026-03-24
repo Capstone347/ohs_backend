@@ -298,12 +298,6 @@ def get_order_summary(
     order_service: OrderService = Depends(get_order_service),
     current_user: dict[str, int | str] = Depends(get_authenticated_user_context),
 ) -> OrderSummaryResponse:
-    if order_id <= 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="order_id must be greater than 0"
-        )
-    
     try:
         order = order_service.get_order_with_relations(order_id)
     except RecordNotFoundError:
@@ -311,8 +305,8 @@ def get_order_summary(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Order {order_id} not found"
         )
-    
-    if not order.user or order.user.email != current_user["email"]:
+
+    if order.user_id != current_user["id"]:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Order {order_id} not found"
@@ -332,13 +326,14 @@ def get_order_summary(
     summary="List orders for a user",
 )
 def list_orders(
-    user_id: int,
     query: str | None = None,
     order_status: OrderStatusEnum | None = None,
     page: int = 1,
     page_size: int = 20,
     order_service: OrderService = Depends(get_order_service),
+    current_user: dict[str, int | str] = Depends(get_authenticated_user_context),
 ) -> PaginatedOrdersResponse:
+    user_id = current_user["id"]
     try:
         orders, total = order_service.list_user_orders(
             user_id=user_id,
@@ -373,9 +368,10 @@ def list_orders(
 )
 def get_order_detail(
     order_id: int,
-    user_id: int,
     order_service: OrderService = Depends(get_order_service),
+    current_user: dict[str, int | str] = Depends(get_authenticated_user_context),
 ) -> OrderDetailResponse:
+    user_id = current_user["id"]
     try:
         order = order_service.get_order_with_relations(order_id)
     except RecordNotFoundError:

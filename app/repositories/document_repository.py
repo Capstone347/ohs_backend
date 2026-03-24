@@ -174,6 +174,20 @@ class DocumentRepository(BaseRepository[Document]):
             .all()
         )
 
+    def update_access_token(
+        self, document_id: int, access_token: str, token_expires_at: datetime
+    ) -> Document:
+        if not document_id:
+            raise ValueError("document_id is required")
+
+        if not access_token:
+            raise ValueError("access_token is required")
+
+        document = self.get_by_id_or_fail(document_id)
+        document.access_token = access_token
+        document.token_expires_at = token_expires_at
+        return self.update(document)
+
     def delete_by_id(self, document_id: int) -> None:
         if not document_id:
             raise ValueError("document_id is required")

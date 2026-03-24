@@ -149,6 +149,7 @@ class AuthService:
             "user": {
                 "id": int(user.id),
                 "email": str(user.email),
+                "full_name": str(user.full_name),
             },
         }
 
@@ -244,6 +245,7 @@ class AuthService:
         return {
             "id": int(user.id),
             "email": str(user.email),
+            "full_name": str(user.full_name),
         }
 
     def _decode_session_payload(self, payload_segment: str) -> dict[str, object]:
