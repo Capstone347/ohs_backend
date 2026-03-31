@@ -18,7 +18,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_index('ix_orders_created_at', 'orders', ['created_at'])
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    existing_indexes = [idx['name'] for idx in inspector.get_indexes('orders')]
+    if 'ix_orders_created_at' not in existing_indexes:
+        op.create_index('ix_orders_created_at', 'orders', ['created_at'])
 
 
 def downgrade() -> None:

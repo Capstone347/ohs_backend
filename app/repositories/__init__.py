@@ -9,9 +9,10 @@ from app.repositories.email_log_repository import EmailLogRepository
 from app.repositories.company_logo_repository import CompanyLogoRepository
 from app.repositories.industry_profile_repository import IndustryProfileRepository
 from app.repositories.auth_otp_request_repository import AuthOtpRequestRepository
+from app.repositories.sjp_generation_job_repository import SjpGenerationJobRepository
 
 __all__ = [
-    "BaseRepository",
+ "BaseRepository",
     "OrderRepository",
     "UserRepository",
     "CompanyRepository",
@@ -22,4 +23,5 @@ __all__ = [
     "CompanyLogoRepository",
     "IndustryProfileRepository",
     "AuthOtpRequestRepository",
+    "SjpGenerationJobRepository",
 ]

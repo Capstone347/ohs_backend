@@ -1,7 +1,7 @@
 """add_auth_otp_requests_table
 
 Revision ID: 9a3d1f6c4b21
-Revises: c70911c62f07
+cRevises: c70911c62f07
 Create Date: 2026-03-16 23:55:00.000000
 
 """

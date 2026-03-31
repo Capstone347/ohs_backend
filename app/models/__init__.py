@@ -22,30 +22,33 @@ from .naics_user_content import NAICSUserContent
 from .order_status import OrderStatus, OrderStatusEnum, PaymentStatus
 from .industry_intake_response import IndustryIntakeResponse
 from .auth_otp_request import AuthOtpRequest
+from .sjp_generation_job import SjpGenerationJob, SjpGenerationStatus
 
 __all__ = [
     "Plan",
-    "PlanSlug", 
+    "PlanSlug",
     "PlanName",
     "Company",
-    "User", 
+    "User",
     "UserRole",
     "Order",
-    "Document", 
+    "Document",
     "DocumentFormat",
     "CompanyLogo",
-    "EmailLog", 
+    "EmailLog",
     "EmailStatus",
-    "SystemLog", 
+    "SystemLog",
     "LogLevel",
     "LegalAcknowledgement",
     "IndustryProfile",
     "IndustryNAICSCode",
     "NAICSCode",
     "NAICSUserContent",
-    "OrderStatus", 
-    "OrderStatusEnum", 
+    "OrderStatus",
+    "OrderStatusEnum",
     "PaymentStatus",
     "IndustryIntakeResponse",
     "AuthOtpRequest",
+    "SjpGenerationJob",
+    "SjpGenerationStatus",
 ]
