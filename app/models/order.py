@@ -31,3 +31,4 @@ class Order(Base):
     naics_user_content = relationship("NAICSUserContent", back_populates="order")
     order_status = relationship("OrderStatus", back_populates="order", uselist=False)
     industry_intake_response = relationship("IndustryIntakeResponse", back_populates="order", uselist=False)
+    sjp_generation_jobs = relationship("SjpGenerationJob", back_populates="order")

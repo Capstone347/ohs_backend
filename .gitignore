@@ -83,3 +83,9 @@ Thumbs.db
 
 # CLAUDE
 CLAUDE.md
+
+# Copilot Instructions
+*.instructions/
+*instructions.md
+.github/coding_guide.instructions.md 
+.github/copilot-instructions.md
