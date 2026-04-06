@@ -1,6 +1,7 @@
 import sys
 import os
 from pathlib import Path
+from decimal import Decimal
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pymysql
@@ -27,34 +28,48 @@ config = {
     'charset': 'utf8mb4'
 }
 
+BASIC_PLAN_PRICE = Decimal(os.getenv("BASIC_PLAN_BASE_PRICE", "99.99"))
+COMPREHENSIVE_PLAN_PRICE = Decimal(os.getenv("COMPREHENSIVE_PLAN_BASE_PRICE", "199.99"))
+INDUSTRY_SPECIFIC_PLAN_PRICE = Decimal(os.getenv("INDUSTRY_SPECIFIC_PLAN_BASE_PRICE", "50.00"))
+
 try:
     print(f"Connecting to {config['host']}:{config['port']}/{config['database']} as {config['user']}...")
     connection = pymysql.connect(**config)
     
     with connection.cursor() as cursor:
     
-        cursor.execute("SELECT COUNT(*) FROM plans")
-        count = cursor.fetchone()[0]
-        
-        if count >= 2:
-            print(f"Found {count} plans, skipping")
-            sys.exit(0)
-        
-        
-        print("Inserting plans...")
-        cursor.execute("""
-            INSERT INTO plans (slug, name, description, base_price)
-            VALUES ('basic', 'Basic', 'Basic OHS manual', 99.99)
-        """)
-        
-        cursor.execute("""
-            INSERT INTO plans (slug, name, description, base_price)
-            VALUES ('comprehensive', 'Comprehensive', 'Comprehensive OHS manual', 199.99)
-        """)
+        print("Ensuring required plans exist...")
+
+        plans_to_seed = [
+            ("basic", "Basic", "Basic OHS manual", BASIC_PLAN_PRICE),
+            ("comprehensive", "Comprehensive", "Comprehensive OHS manual", COMPREHENSIVE_PLAN_PRICE),
+            (
+                "industry_specific",
+                "Industry Specific",
+                "Industry-specific SJP generation for existing manuals",
+                INDUSTRY_SPECIFIC_PLAN_PRICE,
+            ),
+        ]
+
+        inserted = 0
+        for slug, name, description, base_price in plans_to_seed:
+            cursor.execute("SELECT id FROM plans WHERE slug = %s", (slug,))
+            existing = cursor.fetchone()
+            if existing:
+                continue
+
+            cursor.execute(
+                """
+                INSERT INTO plans (slug, name, description, base_price)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (slug, name, description, str(base_price)),
+            )
+            inserted += 1
         
         connection.commit()
         
-        print("Plans inserted successfully")
+        print(f"Inserted {inserted} new plan(s)")
         
     
         cursor.execute("SELECT id, slug, name, base_price FROM plans")
