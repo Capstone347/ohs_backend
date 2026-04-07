@@ -15,6 +15,8 @@ from app.repositories.industry_intake_response_repository import IndustryIntakeR
 from app.repositories.email_log_repository import EmailLogRepository
 from app.repositories.auth_otp_request_repository import AuthOtpRequestRepository
 from app.repositories.sjp_generation_job_repository import SjpGenerationJobRepository
+from app.repositories.sjp_toc_entry_repository import SjpTocEntryRepository
+from app.repositories.sjp_content_repository import SjpContentRepository
 from app.services.order_service import OrderService
 from app.services.sjp_generation_service import SjpGenerationService
 from app.services.validation_service import ValidationService
@@ -78,6 +80,14 @@ def get_auth_otp_request_repository(db: Session = Depends(get_db)) -> AuthOtpReq
 
 def get_sjp_generation_job_repository(db: Session = Depends(get_db)) -> SjpGenerationJobRepository:
     return SjpGenerationJobRepository(db)
+
+
+def get_sjp_toc_entry_repository(db: Session = Depends(get_db)) -> SjpTocEntryRepository:
+    return SjpTocEntryRepository(db)
+
+
+def get_sjp_content_repository(db: Session = Depends(get_db)) -> SjpContentRepository:
+    return SjpContentRepository(db)
 
 
 def get_validation_service() -> ValidationService:
@@ -174,8 +184,15 @@ def get_industry_intake_service(
 def get_sjp_generation_service(
     order_repo: OrderRepository = Depends(get_order_repository),
     sjp_job_repo: SjpGenerationJobRepository = Depends(get_sjp_generation_job_repository),
+    sjp_toc_entry_repo: SjpTocEntryRepository = Depends(get_sjp_toc_entry_repository),
+    sjp_content_repo: SjpContentRepository = Depends(get_sjp_content_repository),
 ) -> SjpGenerationService:
-    return SjpGenerationService(order_repo, sjp_job_repo)
+    return SjpGenerationService(
+        order_repo=order_repo,
+        sjp_job_repo=sjp_job_repo,
+        sjp_toc_entry_repo=sjp_toc_entry_repo,
+        sjp_content_repo=sjp_content_repo,
+    )
 
 
 def get_email_template_renderer() -> EmailTemplateRenderer:
