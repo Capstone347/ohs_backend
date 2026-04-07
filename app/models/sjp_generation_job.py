@@ -42,3 +42,4 @@ class SjpGenerationJob(Base):
     updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     order = relationship("Order", back_populates="sjp_generation_jobs")
+    toc_entries = relationship("SjpTocEntry", back_populates="job", cascade="all, delete-orphan")

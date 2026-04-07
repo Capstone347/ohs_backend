@@ -99,6 +99,26 @@ def sample_plan(plan_repo):
     )
 
 
+@pytest.fixture
+def sample_comprehensive_plan(plan_repo):
+    return plan_repo.create_plan(
+        slug=PlanSlug.COMPREHENSIVE,
+        name=PlanName.COMPREHENSIVE,
+        base_price=199.99,
+        description="Comprehensive plan",
+    )
+
+
+@pytest.fixture
+def sample_industry_specific_plan(plan_repo):
+    return plan_repo.create_plan(
+        slug=PlanSlug.INDUSTRY_SPECIFIC,
+        name=PlanName.INDUSTRY_SPECIFIC,
+        base_price=50.00,
+        description="Industry-specific SJP generation",
+    )
+
+
 class TestOrderService:
     def test_create_order(self, order_service, sample_user, sample_company, sample_plan):
         order = order_service.create_order(
@@ -365,10 +385,39 @@ class TestOrderService:
         
         assert total == Decimal("99.99")
 
-    def test_calculate_order_total_with_industry_specific(self, order_service, sample_plan):
+    def test_calculate_order_total_with_industry_specific(self, order_service, sample_plan, sample_industry_specific_plan):
         total = order_service.calculate_order_total(sample_plan.id, is_industry_specific=True)
         
         assert total == Decimal("149.99")
+
+    def test_calculate_order_total_comprehensive(self, order_service, sample_comprehensive_plan):
+        total = order_service.calculate_order_total(sample_comprehensive_plan.id)
+
+        assert total == Decimal("199.99")
+
+    def test_calculate_order_total_comprehensive_with_industry_specific(
+        self,
+        order_service,
+        sample_comprehensive_plan,
+        sample_industry_specific_plan,
+    ):
+        total = order_service.calculate_order_total(sample_comprehensive_plan.id, is_industry_specific=True)
+
+        assert total == Decimal("249.99")
+
+    def test_calculate_order_total_standalone_industry_specific(self, order_service, sample_industry_specific_plan):
+        total = order_service.calculate_order_total(sample_industry_specific_plan.id)
+
+        assert total == Decimal("50.00")
+
+    def test_calculate_order_total_standalone_industry_specific_ignores_addon_flag(
+        self,
+        order_service,
+        sample_industry_specific_plan,
+    ):
+        total = order_service.calculate_order_total(sample_industry_specific_plan.id, is_industry_specific=True)
+
+        assert total == Decimal("50.00")
 
     def test_get_orders_by_status(self, order_service, sample_user, sample_company, sample_plan):
         order = order_service.create_order(

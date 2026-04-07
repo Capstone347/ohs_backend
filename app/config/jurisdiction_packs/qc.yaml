@@ -1,0 +1,27 @@
+province_code: "QC"
+province_name: "Quebec"
+legislation_name: "Act Respecting Occupational Health and Safety (LSST), CQLR c. S-2.1"
+regulatory_body: "Commission des normes, de l'équité, de la santé et de la sécurité du travail (CNESST)"
+key_regulations:
+  - "Regulation Respecting Occupational Health and Safety, CQLR c. S-2.1, r. 13"
+  - "Safety Code for the Construction Industry, CQLR c. S-2.1, r. 4"
+  - "Regulation Respecting Sanitary Conditions in Industrial Establishments, CQLR c. S-2.1, r. 18"
+  - "Act Respecting Industrial Accidents and Occupational Diseases (LATMP), CQLR c. A-3.001"
+  - "An Act to Modernize the Occupational Health and Safety Regime, S.Q. 2021, c. 27"
+terminology_notes: >
+  In Quebec, OHS is governed by the LSST and administered by the CNESST, which also
+  handles workers' compensation. The 2021 modernization act (Bill 59) expanded joint OHS
+  committee requirements and introduced new prevention programs. Quebec uses the term
+  'programme de prévention' for employer OHS programs. Workers have the right to refuse
+  dangerous work under Section 12 of the LSST. Joint health and safety committees
+  ('comité de santé et de sécurité') are required in establishments with 20 or more
+  workers in priority sectors.
+prompt_preamble: >
+  The following Safe Job Procedure is intended to reflect workplace safety requirements
+  aligned with Quebec's Act Respecting Occupational Health and Safety (LSST, CQLR c.
+  S-2.1) and the Regulation Respecting Occupational Health and Safety (CQLR c. S-2.1,
+  r. 13), as administered by the Commission des normes, de l'équité, de la santé et de
+  la sécurité du travail (CNESST). This content is intended to support safe work
+  practices and does not constitute legal advice. Employers should consult the current
+  legislation and a qualified OHS professional to ensure full compliance.
+

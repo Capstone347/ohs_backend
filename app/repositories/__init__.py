@@ -10,6 +10,8 @@ from app.repositories.company_logo_repository import CompanyLogoRepository
 from app.repositories.industry_profile_repository import IndustryProfileRepository
 from app.repositories.auth_otp_request_repository import AuthOtpRequestRepository
 from app.repositories.sjp_generation_job_repository import SjpGenerationJobRepository
+from app.repositories.sjp_toc_entry_repository import SjpTocEntryRepository
+from app.repositories.sjp_content_repository import SjpContentRepository
 
 __all__ = [
  "BaseRepository",
@@ -24,4 +26,6 @@ __all__ = [
     "IndustryProfileRepository",
     "AuthOtpRequestRepository",
     "SjpGenerationJobRepository",
+    "SjpTocEntryRepository",
+    "SjpContentRepository",
 ]

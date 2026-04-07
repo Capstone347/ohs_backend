@@ -9,11 +9,13 @@ from app.database import Base
 class PlanSlug(str, Enum):
     BASIC = "basic"
     COMPREHENSIVE = "comprehensive"
+    INDUSTRY_SPECIFIC = "industry_specific"
 
 
 class PlanName(str, Enum):
     BASIC = "Basic"
     COMPREHENSIVE = "Comprehensive"
+    INDUSTRY_SPECIFIC = "Industry Specific"
 
 
 class Plan(Base):

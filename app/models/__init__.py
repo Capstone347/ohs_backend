@@ -24,6 +24,8 @@ from .industry_intake_response import IndustryIntakeResponse
 from .auth_otp_request import AuthOtpRequest
 from .sjp_generation_job import SjpGenerationJob, SjpGenerationStatus
 from .admin_user import AdminUser, AdminRole
+from .sjp_toc_entry import SjpTocEntry
+from .sjp_content import SjpContent, SjpContentStatus
 
 __all__ = [
     "Plan",
@@ -54,4 +56,7 @@ __all__ = [
     "SjpGenerationStatus",
     "AdminUser",
     "AdminRole",
+    "SjpTocEntry",
+    "SjpContent",
+    "SjpContentStatus",
 ]

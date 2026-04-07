@@ -8,6 +8,7 @@ from app.repositories.order_status_repository import OrderStatusRepository
 from app.repositories.company_repository import CompanyRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.plan_repository import PlanRepository
+from app.models.plan import PlanSlug
 from app.services.validation_service import ValidationService
 from app.services.exceptions import (
     OrderServiceException,
@@ -279,9 +280,16 @@ class OrderService:
         plan = self.plan_repo.get_by_id_or_fail(plan_id)
         
         total = Decimal(plan.base_price)
+
+        # Standalone industry-specific purchases use only the selected plan price.
+        if plan.slug == PlanSlug.INDUSTRY_SPECIFIC.value:
+            return total
         
         if is_industry_specific:
-            industry_addon = Decimal("50.00")
-            total += industry_addon
+            industry_addon_plan = self.plan_repo.get_by_slug(PlanSlug.INDUSTRY_SPECIFIC)
+            if not industry_addon_plan:
+                raise OrderServiceException("industry_specific plan is not configured")
+
+            total += Decimal(industry_addon_plan.base_price)
         
         return total
