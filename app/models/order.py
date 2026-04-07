@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, Integer, String, Numeric, Boolean, Text, ForeignKey
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -15,12 +15,15 @@ class Order(Base):
     company_id = Column(Integer, ForeignKey("company.id", ondelete="NO ACTION", onupdate="NO ACTION"), nullable=False, index=True)
     jurisdiction = Column(String(100), nullable=False)
     total_amount = Column(Numeric(10, 2), nullable=False)
-    created_at = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
+    created_at = Column(DateTime, nullable=False, default=datetime.now(UTC))
     completed_at = Column(DateTime, nullable=True)
     is_industry_specific = Column(Boolean, nullable=False, default=False)
     admin_notes = Column(Text, nullable=True)
+    reviewed_by_admin_id = Column(Integer, ForeignKey("admin_users.id", ondelete="SET NULL"), nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
 
     user = relationship("User", back_populates="orders")
+    reviewed_by_admin = relationship("AdminUser", foreign_keys=[reviewed_by_admin_id])
     plan = relationship("Plan", back_populates="orders")
     company = relationship("Company", back_populates="orders")
     documents = relationship("Document", back_populates="order")

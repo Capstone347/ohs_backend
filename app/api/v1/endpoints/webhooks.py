@@ -3,24 +3,16 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.api.dependencies import (
-    get_document_repository,
-    get_document_service,
-    get_email_service,
-    get_email_template_renderer,
+    get_order_fulfillment_service,
     get_order_repository,
     get_order_status_repository,
     get_payment_service,
 )
-from app.config import settings
-from app.models.order_status import PaymentStatus
-from app.repositories.document_repository import DocumentRepository
+from app.models.order_status import OrderStatusEnum, PaymentStatus
 from app.repositories.order_repository import OrderRepository
 from app.repositories.order_status_repository import OrderStatusRepository
-from app.schemas.email import DocumentDeliveryContext
 from app.schemas.payment import StripeWebhookEventType
-from app.services.document_service import DocumentService
-from app.services.email_service import EmailService
-from app.services.email_template_renderer import EmailTemplateRenderer
+from app.services.order_fulfillment_service import OrderFulfillmentService
 from app.services.payment_service import PaymentService
 
 logger = logging.getLogger(__name__)
@@ -37,10 +29,7 @@ async def handle_stripe_webhook(
     order_status_repo: OrderStatusRepository = Depends(get_order_status_repository),
     payment_service: PaymentService = Depends(get_payment_service),
     order_repo: OrderRepository = Depends(get_order_repository),
-    document_repo: DocumentRepository = Depends(get_document_repository),
-    document_service: DocumentService = Depends(get_document_service),
-    renderer: EmailTemplateRenderer = Depends(get_email_template_renderer),
-    email_service: EmailService = Depends(get_email_service),
+    fulfillment_service: OrderFulfillmentService = Depends(get_order_fulfillment_service),
 ) -> dict:
     signature = request.headers.get("stripe-signature") or request.headers.get("Stripe-Signature")
     body = await request.body()
@@ -72,10 +61,7 @@ async def handle_stripe_webhook(
             event=event,
             order_status_repo=order_status_repo,
             order_repo=order_repo,
-            document_repo=document_repo,
-            document_service=document_service,
-            renderer=renderer,
-            email_service=email_service,
+            fulfillment_service=fulfillment_service,
         )
 
     if event.event_type == StripeWebhookEventType.CHECKOUT_SESSION_EXPIRED:
@@ -106,10 +92,7 @@ def _handle_checkout_completed(
     event: object,
     order_status_repo: OrderStatusRepository,
     order_repo: OrderRepository,
-    document_repo: DocumentRepository,
-    document_service: DocumentService,
-    renderer: EmailTemplateRenderer,
-    email_service: EmailService,
+    fulfillment_service: OrderFulfillmentService,
 ) -> dict:
     order_status = order_status_repo.get_by_id(order_id)
     if order_status and order_status.payment_status == PaymentStatus.PAID.value:
@@ -120,14 +103,13 @@ def _handle_checkout_completed(
     if event.payment_intent_id:
         order_status_repo.update_stripe_payment_intent_id(order_id, event.payment_intent_id)
 
-    _generate_and_deliver(
-        order_id=order_id,
-        order_repo=order_repo,
-        document_repo=document_repo,
-        document_service=document_service,
-        renderer=renderer,
-        email_service=email_service,
-    )
+    order = order_repo.get_by_id_with_relations(order_id)
+    if order and order.plan and order.plan.requires_approval:
+        order_status_repo.update_order_status(order_id, OrderStatusEnum.REVIEW_PENDING)
+        logger.info("Order %d requires approval, set to review_pending", order_id)
+        return {"status": "ok", "action": "review_pending"}
+
+    fulfillment_service.fulfill_order(order_id)
 
     return {"status": "ok"}
 
@@ -161,53 +143,3 @@ def _handle_payment_intent_failed(
     return {"status": "ok", "action": "marked_failed"}
 
 
-def _generate_and_deliver(
-    order_id: int,
-    order_repo: OrderRepository,
-    document_repo: DocumentRepository,
-    document_service: DocumentService,
-    renderer: EmailTemplateRenderer,
-    email_service: EmailService,
-) -> None:
-    try:
-        order = order_repo.get_by_id_with_relations(order_id)
-    except Exception:
-        logger.error("Failed to fetch order %d for delivery", order_id, exc_info=True)
-        return
-
-    if not order or not order.user:
-        logger.warning("Order %d has no user, skipping delivery", order_id)
-        return
-
-    company_name = order.company.name if order.company else ""
-    recipient = order.user.email
-
-    documents = document_repo.get_documents_by_order_id(order_id)
-
-    if not documents:
-        try:
-            document = document_service.generate_document_for_order(order_id)
-            documents = [document]
-        except Exception:
-            logger.error("Document generation failed for order %d", order_id, exc_info=True)
-            return
-
-    access_token = documents[0].access_token if documents else ""
-    document_id = documents[0].document_id if documents else order_id
-
-    download_link = f"{settings.app_base_url}/api/v1/documents/{document_id}/download"
-    if access_token:
-        download_link += f"?token={access_token}"
-
-    context_model = DocumentDeliveryContext(
-        order_id=order_id,
-        company_name=company_name or "",
-        download_link=download_link,
-        document_name=f"order_{order_id}_document.pdf",
-    )
-    html_body = renderer.render_document_delivery(context_model)
-
-    try:
-        email_service.send_email(order_id, recipient, "Your documents are ready", html_body)
-    except Exception:
-        logger.error("Email delivery failed for order %d", order_id, exc_info=True)

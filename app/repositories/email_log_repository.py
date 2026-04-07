@@ -1,4 +1,6 @@
 from datetime import datetime, timezone
+
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.email_log import EmailLog, EmailStatus
@@ -162,7 +164,7 @@ class EmailLogRepository(BaseRepository[EmailLog]):
     def get_failed_emails_for_retry(self, limit: int = 100) -> list[EmailLog]:
         if limit <= 0:
             raise ValueError("limit must be positive")
-        
+
         return (
             self.db.query(EmailLog)
             .options(joinedload(EmailLog.order))
@@ -171,3 +173,32 @@ class EmailLogRepository(BaseRepository[EmailLog]):
             .limit(limit)
             .all()
         )
+
+    def get_all_paginated(
+        self,
+        skip: int = 0,
+        limit: int = 20,
+        email_status: str | None = None,
+        order_id: int | None = None,
+    ) -> tuple[list[EmailLog], int]:
+        base_filter = []
+        if email_status is not None:
+            base_filter.append(EmailLog.status == email_status)
+        if order_id is not None:
+            base_filter.append(EmailLog.order_id == order_id)
+
+        count_q = select(func.count()).select_from(EmailLog)
+        if base_filter:
+            count_q = count_q.where(*base_filter)
+        total = self.db.execute(count_q).scalar_one()
+
+        items = (
+            self.db.query(EmailLog)
+            .options(joinedload(EmailLog.order))
+            .filter(*base_filter)
+            .order_by(EmailLog.sent_at.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+        return items, total

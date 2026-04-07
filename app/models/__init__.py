@@ -23,6 +23,7 @@ from .order_status import OrderStatus, OrderStatusEnum, PaymentStatus
 from .industry_intake_response import IndustryIntakeResponse
 from .auth_otp_request import AuthOtpRequest
 from .sjp_generation_job import SjpGenerationJob, SjpGenerationStatus
+from .admin_user import AdminUser, AdminRole
 from .sjp_toc_entry import SjpTocEntry
 from .sjp_content import SjpContent, SjpContentStatus
 
@@ -53,6 +54,8 @@ __all__ = [
     "AuthOtpRequest",
     "SjpGenerationJob",
     "SjpGenerationStatus",
+    "AdminUser",
+    "AdminRole",
     "SjpTocEntry",
     "SjpContent",
     "SjpContentStatus",

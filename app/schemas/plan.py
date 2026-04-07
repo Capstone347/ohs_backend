@@ -9,7 +9,8 @@ class PlanResponse(BaseModel):
     name: str
     description: str | None = None
     base_price: Decimal = Field(..., description="Base price in CAD")
-    
+    requires_approval: bool = False
+
     model_config = {
         "from_attributes": True,
         "json_schema_extra": {
