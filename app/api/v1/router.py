@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, documents, health, industry_intake, legal, orders, payments, plans, webhooks
+from app.api.v1.endpoints import auth, documents, health, industry_intake, legal, orders, payments, plans, sjp, webhooks
 
 api_router = APIRouter()
 
@@ -10,6 +10,7 @@ api_router.include_router(plans.router, tags=["plans"])
 api_router.include_router(orders.router, prefix="/orders", tags=["orders"])
 api_router.include_router(documents.router, tags=["documents"])
 api_router.include_router(legal.router, tags=["legal"])
-api_router.include_router(payments.router, prefix="/payments", tags=["payments"]) 
+api_router.include_router(payments.router, prefix="/payments", tags=["payments"])
+api_router.include_router(sjp.router, prefix="/sjp", tags=["sjp"])
 api_router.include_router(webhooks.router, tags=["webhooks"])
 api_router.include_router(industry_intake.router, prefix="/industry", tags=["industry-intake"])

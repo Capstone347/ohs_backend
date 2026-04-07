@@ -1,9 +1,12 @@
+from datetime import datetime, timezone
+from threading import Thread
 from uuid import uuid4
 from app.models.sjp_generation_job import SjpGenerationJob, SjpGenerationStatus
 from app.models.order_status import PaymentStatus
 from app.repositories.order_repository import OrderRepository
 from app.repositories.sjp_generation_job_repository import SjpGenerationJobRepository
 from app.repositories.base_repository import RecordNotFoundError
+from app.database.session import SessionLocal
 from app.services.exceptions import ServiceException
 
 
@@ -65,8 +68,8 @@ class SjpGenerationService:
         if not idempotency_key:
             idempotency_key = str(uuid4())
 
-        # Check if job already exists by idempotency_key (idempotency)
-        existing_job = self.sjp_job_repo.get_by_idempotency_key(idempotency_key)
+        # Check if job already exists for this order or idempotency key
+        existing_job = self._get_existing_job(order_id, idempotency_key)
         if existing_job:
             return existing_job
 
@@ -116,6 +119,34 @@ class SjpGenerationService:
 
         job = self.sjp_job_repo.create(job)
 
-        # TODO: Kick off async generation here (e.g., queue task, emit event, etc.)
+        self._kickoff_async_generation(job.id)
 
         return job
+
+    def _get_existing_job(self, order_id: int, idempotency_key: str) -> SjpGenerationJob | None:
+        existing_jobs = self.sjp_job_repo.get_by_order_id(order_id)
+        if existing_jobs:
+            return existing_jobs[0]
+
+        existing_job = self.sjp_job_repo.get_by_idempotency_key(idempotency_key)
+        if existing_job and existing_job.order_id == order_id:
+            return existing_job
+
+        return None
+
+    def _kickoff_async_generation(self, job_id: int) -> None:
+        def run_generation() -> None:
+            db = SessionLocal()
+            try:
+                job_repo = SjpGenerationJobRepository(db)
+                job = job_repo.get_by_id(job_id)
+                if not job:
+                    return
+
+                job.status = SjpGenerationStatus.GENERATING_TOC.value
+                job.updated_at = datetime.now(timezone.utc)
+                job_repo.update(job)
+            finally:
+                db.close()
+
+        Thread(target=run_generation, daemon=True).start()
