@@ -14,7 +14,9 @@ from app.repositories.legal_acknowledgment_repository import LegalAcknowledgment
 from app.repositories.industry_intake_response_repository import IndustryIntakeResponseRepository
 from app.repositories.email_log_repository import EmailLogRepository
 from app.repositories.auth_otp_request_repository import AuthOtpRequestRepository
+from app.repositories.sjp_generation_job_repository import SjpGenerationJobRepository
 from app.services.order_service import OrderService
+from app.services.sjp_generation_service import SjpGenerationService
 from app.services.validation_service import ValidationService
 from app.services.file_storage_service import FileStorageService
 from app.services.document_generation_service import DocumentGenerationService
@@ -72,6 +74,10 @@ def get_email_log_repository(db: Session = Depends(get_db)) -> EmailLogRepositor
 
 def get_auth_otp_request_repository(db: Session = Depends(get_db)) -> AuthOtpRequestRepository:
     return AuthOtpRequestRepository(db)
+
+
+def get_sjp_generation_job_repository(db: Session = Depends(get_db)) -> SjpGenerationJobRepository:
+    return SjpGenerationJobRepository(db)
 
 
 def get_validation_service() -> ValidationService:
@@ -163,6 +169,15 @@ def get_industry_intake_service(
     intake_repo: IndustryIntakeResponseRepository = Depends(get_industry_intake_response_repository),
 ) -> IndustryIntakeService:
     return IndustryIntakeService(order_repo, intake_repo)
+
+
+def get_sjp_generation_service(
+    order_repo: OrderRepository = Depends(get_order_repository),
+    sjp_job_repo: SjpGenerationJobRepository = Depends(get_sjp_generation_job_repository),
+) -> SjpGenerationService:
+    return SjpGenerationService(order_repo, sjp_job_repo)
+
+
 def get_email_template_renderer() -> EmailTemplateRenderer:
     return EmailTemplateRenderer()
 
