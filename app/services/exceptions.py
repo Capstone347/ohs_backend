@@ -67,3 +67,12 @@ class FileNotFoundServiceException(FileStorageServiceException):
 
 class DocumentGenerationServiceException(ServiceException):
     pass
+
+
+class JurisdictionServiceException(ServiceException):
+    pass
+
+
+class JurisdictionPackLoadError(JurisdictionServiceException):
+    pass
+

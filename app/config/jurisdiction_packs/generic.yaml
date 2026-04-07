@@ -1,0 +1,28 @@
+province_code: "CA"
+province_name: "Canada (Generic)"
+legislation_name: "Canada Labour Code, R.S.C. 1985, c. L-2 (Part II — Occupational Health and Safety)"
+regulatory_body: "Employment and Social Development Canada (ESDC) — Labour Program"
+key_regulations:
+  - "Canada Occupational Health and Safety Regulations, SOR/86-304"
+  - "Part II of the Canada Labour Code — Occupational Health and Safety"
+  - "Hazardous Occurrence Investigation, Recording and Reporting Regulations, SOR/86-294"
+  - "Canada Occupational Health and Safety Regulations — Part X (Hazardous Substances)"
+terminology_notes: >
+  This is a generic Canadian OHS preamble used when no province-specific pack is
+  available. Federal OHS legislation (Part II of the Canada Labour Code) applies to
+  federally regulated workplaces including banks, airlines, telecommunications, and
+  interprovincial transportation. Most workplaces fall under provincial jurisdiction.
+  Employers are strongly encouraged to consult the specific provincial or territorial
+  legislation applicable to their workplace. Workers have the right to refuse dangerous
+  work under Section 128 of the Canada Labour Code.
+prompt_preamble: >
+  The following Safe Job Procedure is intended to reflect general workplace safety
+  requirements aligned with Canadian occupational health and safety best practices and,
+  where applicable, Part II of the Canada Labour Code, R.S.C. 1985, c. L-2, as
+  administered by Employment and Social Development Canada. Note: most Canadian workplaces
+  fall under provincial or territorial OHS jurisdiction — this procedure should be
+  reviewed against the legislation applicable to your specific province or territory.
+  This content is intended to support safe work practices and does not constitute legal
+  advice. Employers should consult the current legislation and a qualified OHS
+  professional to ensure full compliance.
+

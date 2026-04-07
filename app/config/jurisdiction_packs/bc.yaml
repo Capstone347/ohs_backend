@@ -1,0 +1,25 @@
+province_code: "BC"
+province_name: "British Columbia"
+legislation_name: "Workers Compensation Act, R.S.B.C. 2019, c. 1"
+regulatory_body: "WorkSafeBC (Workers' Compensation Board of British Columbia)"
+key_regulations:
+  - "Occupational Health and Safety Regulation (OHSR), B.C. Reg. 296/97"
+  - "Part 3 — Rights and Responsibilities (OHS Regulation)"
+  - "Part 4 — General Conditions (OHS Regulation)"
+  - "Part 20 — Construction, Excavation and Demolition (OHS Regulation)"
+  - "Part 9 — Confined Spaces (OHS Regulation)"
+terminology_notes: >
+  In British Columbia, occupational health and safety is administered by WorkSafeBC,
+  which combines workers' compensation and OHS regulatory functions. The primary OHS
+  instrument is the OHS Regulation made under the Workers Compensation Act. Employers
+  must establish and maintain a written OHS program. The term 'prime contractor' is used
+  on multi-employer worksites. Workers have the right to refuse unsafe work under
+  Section 3.12 of the OHS Regulation.
+prompt_preamble: >
+  The following Safe Job Procedure is intended to reflect workplace safety requirements
+  aligned with British Columbia's Workers Compensation Act, R.S.B.C. 2019, c. 1, and
+  the Occupational Health and Safety Regulation (B.C. Reg. 296/97), as administered by
+  WorkSafeBC. This content is intended to support safe work practices and does not
+  constitute legal advice. Employers should consult the current legislation and a
+  qualified OHS professional to ensure full compliance.
+

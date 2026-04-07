@@ -1,0 +1,25 @@
+province_code: "ON"
+province_name: "Ontario"
+legislation_name: "Occupational Health and Safety Act (OHSA), R.S.O. 1990, c. O.1"
+regulatory_body: "Ontario Ministry of Labour, Immigration, Training and Skills Development"
+key_regulations:
+  - "O. Reg. 213/91 — Construction Projects"
+  - "O. Reg. 851 — Industrial Establishments"
+  - "O. Reg. 632/05 — Confined Spaces"
+  - "O. Reg. 490/09 — Designated Substances"
+  - "O. Reg. 297/13 — Occupational Health and Safety Awareness and Training"
+terminology_notes: >
+  In Ontario, the employer's primary duty-holder is referred to as the 'constructor' on
+  construction projects and 'employer' in industrial settings. Joint Health and Safety
+  Committees (JHSCs) are required for workplaces with 20 or more workers. Workers have
+  the right to refuse unsafe work under Section 43 of the OHSA.
+prompt_preamble: >
+  The following Safe Job Procedure is intended to reflect workplace safety requirements
+  aligned with Ontario's Occupational Health and Safety Act (OHSA), R.S.O. 1990, c. O.1,
+  and applicable regulations including O. Reg. 213/91 (Construction Projects) and
+  O. Reg. 851 (Industrial Establishments), as administered by the Ontario Ministry of
+  Labour, Immigration, Training and Skills Development. This content is intended to
+  support safe work practices and does not constitute legal advice. Employers should
+  consult the current legislation and a qualified OHS professional to ensure full
+  compliance.
+
