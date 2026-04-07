@@ -23,6 +23,7 @@ from .order_status import OrderStatus, OrderStatusEnum, PaymentStatus
 from .industry_intake_response import IndustryIntakeResponse
 from .auth_otp_request import AuthOtpRequest
 from .sjp_generation_job import SjpGenerationJob, SjpGenerationStatus
+from .admin_user import AdminUser, AdminRole
 
 __all__ = [
     "Plan",
@@ -51,4 +52,6 @@ __all__ = [
     "AuthOtpRequest",
     "SjpGenerationJob",
     "SjpGenerationStatus",
+    "AdminUser",
+    "AdminRole",
 ]

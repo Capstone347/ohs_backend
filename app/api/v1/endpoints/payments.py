@@ -3,22 +3,17 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from app.api.dependencies import (
-    get_document_repository,
-    get_email_service,
-    get_email_template_renderer,
+    get_order_fulfillment_service,
     get_order_repository,
     get_order_status_repository,
     get_payment_service,
 )
 from app.config import settings
 from app.repositories.base_repository import RecordNotFoundError
-from app.repositories.document_repository import DocumentRepository
 from app.repositories.order_repository import OrderRepository
 from app.repositories.order_status_repository import OrderStatusRepository
-from app.schemas.email import DocumentDeliveryContext
 from app.schemas.payment import CheckoutSessionResponse, StripeConfigResponse
-from app.services.email_service import EmailService
-from app.services.email_template_renderer import EmailTemplateRenderer
+from app.services.order_fulfillment_service import OrderFulfillmentService
 from app.services.payment_service import PaymentService
 
 router = APIRouter()
@@ -91,9 +86,7 @@ def create_checkout_session(
 def trigger_order_delivery(
     order_id: int = Path(..., gt=0),
     order_repo: OrderRepository = Depends(get_order_repository),
-    document_repo: DocumentRepository = Depends(get_document_repository),
-    renderer: EmailTemplateRenderer = Depends(get_email_template_renderer),
-    email_service: EmailService = Depends(get_email_service),
+    fulfillment_service: OrderFulfillmentService = Depends(get_order_fulfillment_service),
 ) -> dict:
     try:
         order = order_repo.get_by_id_with_relations(order_id)
@@ -103,27 +96,6 @@ def trigger_order_delivery(
     if not order:
         raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
 
-    company_name = order.company.name if order.company else ""
-    recipient = order.user.email if order.user else ""
-
-    if not recipient:
-        raise HTTPException(status_code=400, detail="Order has no associated user email")
-
-    documents = document_repo.get_documents_by_order_id(order_id)
-    access_token = documents[0].access_token if documents else ""
-
-    download_link = f"{settings.app_base_url}/api/v1/documents/{order_id}/download"
-    if access_token:
-        download_link += f"?token={access_token}"
-
-    context_model = DocumentDeliveryContext(
-        order_id=order_id,
-        company_name=company_name or "",
-        download_link=download_link,
-        document_name=f"order_{order_id}_document.pdf",
-    )
-
-    html_body = renderer.render_document_delivery(context_model)
-    email_service.send_email(order_id, recipient, "Your documents are ready", html_body)
+    fulfillment_service.fulfill_order(order_id)
 
     return {"status": "delivery_triggered"}

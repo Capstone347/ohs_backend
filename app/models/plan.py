@@ -1,5 +1,6 @@
 from enum import Enum
-from sqlalchemy import Column, Integer, String, Text, Numeric, Enum as SQLEnum
+
+from sqlalchemy import Boolean, Column, Integer, Numeric, String, Text
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -23,5 +24,6 @@ class Plan(Base):
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
     base_price = Column(Numeric(10, 2), nullable=False)
+    requires_approval = Column(Boolean, nullable=False, default=False, server_default="0")
 
     orders = relationship("Order", back_populates="plan")

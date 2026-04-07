@@ -27,6 +27,11 @@ from app.services.email_template_renderer import EmailTemplateRenderer
 from app.services.payment_service import PaymentService
 from app.services.auth_service import AuthService
 from app.services.stripe_provider import StripePaymentProvider
+from app.services.order_fulfillment_service import OrderFulfillmentService
+from app.services.admin_order_service import AdminOrderService
+from app.services.admin_auth_service import AdminAuthService
+from app.repositories.admin_user_repository import AdminUserRepository
+from app.models.admin_user import AdminRole
 from app.config import settings
 
 
@@ -204,6 +209,74 @@ def get_authenticated_user_context(
     request.state.user_id = user_data["id"]
     request.state.user_email = user_data["email"]
     return user_data
+
+
+def get_order_fulfillment_service(
+    order_repo: OrderRepository = Depends(get_order_repository),
+    order_status_repo: OrderStatusRepository = Depends(get_order_status_repository),
+    document_repo: DocumentRepository = Depends(get_document_repository),
+    document_service: DocumentService = Depends(get_document_service),
+    email_service: EmailService = Depends(get_email_service),
+    renderer: EmailTemplateRenderer = Depends(get_email_template_renderer),
+) -> OrderFulfillmentService:
+    return OrderFulfillmentService(
+        order_repo,
+        order_status_repo,
+        document_repo,
+        document_service,
+        email_service,
+        renderer,
+    )
+
+
+def get_admin_order_service(
+    order_repo: OrderRepository = Depends(get_order_repository),
+    order_status_repo: OrderStatusRepository = Depends(get_order_status_repository),
+    fulfillment_service: OrderFulfillmentService = Depends(get_order_fulfillment_service),
+) -> AdminOrderService:
+    return AdminOrderService(order_repo, order_status_repo, fulfillment_service)
+
+
+def get_admin_user_repository(db: Session = Depends(get_db)) -> AdminUserRepository:
+    return AdminUserRepository(db)
+
+
+def get_admin_auth_service(
+    admin_user_repo: AdminUserRepository = Depends(get_admin_user_repository),
+) -> AdminAuthService:
+    return AdminAuthService(
+        admin_user_repo=admin_user_repo,
+        settings=settings,
+    )
+
+
+def get_authenticated_admin_context(
+    request: Request,
+    admin_session: str | None = Cookie(default=None),
+    admin_auth_service: AdminAuthService = Depends(get_admin_auth_service),
+) -> dict[str, int | str]:
+    try:
+        admin_data = admin_auth_service.get_authenticated_admin(admin_session)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid admin session",
+        )
+
+    request.state.admin_id = admin_data["id"]
+    request.state.admin_email = admin_data["email"]
+    return admin_data
+
+
+def get_owner_admin_context(
+    admin_context: dict[str, int | str] = Depends(get_authenticated_admin_context),
+) -> dict[str, int | str]:
+    if admin_context.get("role") != AdminRole.OWNER.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Owner access required",
+        )
+    return admin_context
 
 
 def get_stripe_payment_provider() -> StripePaymentProvider:
