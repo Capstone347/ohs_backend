@@ -1,0 +1,25 @@
+province_code: "AB"
+province_name: "Alberta"
+legislation_name: "Occupational Health and Safety Act, S.A. 2017, c. O-2.1"
+regulatory_body: "Alberta Occupational Health and Safety (Alberta OHS), Ministry of Jobs, Economy and Trade"
+key_regulations:
+  - "Occupational Health and Safety Code, Alta. Reg. 87/2009"
+  - "Occupational Health and Safety Regulation, Alta. Reg. 62/2003"
+  - "Part 2 — Hazard Assessment, Elimination and Control (OHS Code)"
+  - "Part 6 — Cranes, Hoists and Lifting Devices (OHS Code)"
+  - "Part 40 — Hydrogen Sulphide (OHS Code)"
+terminology_notes: >
+  In Alberta, the OHS Act establishes duties for employers, supervisors, workers, prime
+  contractors, and owners. The OHS Code contains detailed technical requirements. Alberta
+  requires employers to conduct formal hazard assessments and document controls. Workers
+  have the right to refuse dangerous work under Section 31 of the OHS Act. A Joint Work
+  Site Health and Safety Committee is required at worksites with 20 or more workers.
+prompt_preamble: >
+  The following Safe Job Procedure is intended to reflect workplace safety requirements
+  aligned with Alberta's Occupational Health and Safety Act, S.A. 2017, c. O-2.1, and
+  the Occupational Health and Safety Code (Alta. Reg. 87/2009), as administered by
+  Alberta Occupational Health and Safety under the Ministry of Jobs, Economy and Trade.
+  This content is intended to support safe work practices and does not constitute legal
+  advice. Employers should consult the current legislation and a qualified OHS
+  professional to ensure full compliance.
+
