@@ -12,6 +12,7 @@ from app.repositories.auth_otp_request_repository import AuthOtpRequestRepositor
 from app.repositories.sjp_generation_job_repository import SjpGenerationJobRepository
 from app.repositories.sjp_toc_entry_repository import SjpTocEntryRepository
 from app.repositories.sjp_content_repository import SjpContentRepository
+from app.repositories.llm_usage_log_repository import LlmUsageLogRepository
 
 __all__ = [
  "BaseRepository",
@@ -28,4 +29,5 @@ __all__ = [
     "SjpGenerationJobRepository",
     "SjpTocEntryRepository",
     "SjpContentRepository",
+    "LlmUsageLogRepository",
 ]

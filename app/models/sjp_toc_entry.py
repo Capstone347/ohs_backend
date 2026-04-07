@@ -22,4 +22,5 @@ class SjpTocEntry(Base):
 
     job = relationship("SjpGenerationJob", back_populates="toc_entries")
     content = relationship("SjpContent", back_populates="toc_entry", uselist=False, cascade="all, delete-orphan")
+    llm_usage_logs = relationship("LlmUsageLog", back_populates="toc_entry", cascade="all, delete-orphan")
 

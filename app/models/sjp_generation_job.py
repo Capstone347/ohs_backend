@@ -43,3 +43,4 @@ class SjpGenerationJob(Base):
 
     order = relationship("Order", back_populates="sjp_generation_jobs")
     toc_entries = relationship("SjpTocEntry", back_populates="job", cascade="all, delete-orphan")
+    llm_usage_logs = relationship("LlmUsageLog", back_populates="job", cascade="all, delete-orphan")

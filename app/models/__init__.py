@@ -26,6 +26,7 @@ from .sjp_generation_job import SjpGenerationJob, SjpGenerationStatus
 from .admin_user import AdminUser, AdminRole
 from .sjp_toc_entry import SjpTocEntry
 from .sjp_content import SjpContent, SjpContentStatus
+from .llm_usage_log import LlmUsageLog, LlmUsageStage
 
 __all__ = [
     "Plan",
@@ -59,4 +60,6 @@ __all__ = [
     "SjpTocEntry",
     "SjpContent",
     "SjpContentStatus",
+    "LlmUsageLog",
+    "LlmUsageStage",
 ]
