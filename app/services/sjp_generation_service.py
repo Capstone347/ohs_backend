@@ -1,12 +1,20 @@
 from datetime import datetime, timezone
 from threading import Thread
 from uuid import uuid4
+from app.models.sjp_content import SjpContentStatus
 from app.models.sjp_generation_job import SjpGenerationJob, SjpGenerationStatus
 from app.models.order_status import PaymentStatus
 from app.repositories.order_repository import OrderRepository
+from app.repositories.sjp_content_repository import SjpContentRepository
 from app.repositories.sjp_generation_job_repository import SjpGenerationJobRepository
+from app.repositories.sjp_toc_entry_repository import SjpTocEntryRepository
 from app.repositories.base_repository import RecordNotFoundError
 from app.database.session import SessionLocal
+from app.schemas.sjp import (
+    SjpGenerationStatusResponse,
+    SjpProgressSummaryResponse,
+    SjpTocEntryStatusResponse,
+)
 from app.services.exceptions import ServiceException
 
 
@@ -30,6 +38,11 @@ class MissingIndustryProfile(SjpGenerationServiceException):
     pass
 
 
+class SjpGenerationJobNotFound(SjpGenerationServiceException):
+    """Generation job does not exist for this order."""
+    pass
+
+
 class SjpGenerationService:
     """Service for managing SJP generation jobs for paid industry-specific orders."""
 
@@ -37,9 +50,13 @@ class SjpGenerationService:
         self,
         order_repo: OrderRepository,
         sjp_job_repo: SjpGenerationJobRepository,
+        sjp_toc_entry_repo: SjpTocEntryRepository,
+        sjp_content_repo: SjpContentRepository,
     ):
         self.order_repo = order_repo
         self.sjp_job_repo = sjp_job_repo
+        self.sjp_toc_entry_repo = sjp_toc_entry_repo
+        self.sjp_content_repo = sjp_content_repo
 
     def start_generation(
         self,
@@ -150,3 +167,62 @@ class SjpGenerationService:
                 db.close()
 
         Thread(target=run_generation, daemon=True).start()
+
+    def get_generation_status(self, order_id: int, user_id: int) -> SjpGenerationStatusResponse:
+        order = self.order_repo.get_by_id(order_id)
+        if not order or order.user_id != user_id:
+            raise OrderNotFound(f"Order {order_id} not found")
+
+        jobs = self.sjp_job_repo.get_by_order_id(order_id)
+        if not jobs:
+            raise SjpGenerationJobNotFound(f"No SJP generation job found for order {order_id}")
+
+        latest_job = jobs[0]
+        toc_entries = self.sjp_toc_entry_repo.get_by_job_id(latest_job.id)
+
+        toc_ids = [entry.id for entry in toc_entries]
+        contents = self.sjp_content_repo.get_by_toc_entry_ids(toc_ids) if toc_ids else []
+        content_by_toc_id = {content.toc_entry_id: content for content in contents}
+
+        completed_count = 0
+        toc_statuses: list[SjpTocEntryStatusResponse] = []
+
+        for entry in toc_entries:
+            content = content_by_toc_id.get(entry.id)
+            entry_status = content.status if content else SjpContentStatus.PENDING.value
+            is_completed = entry_status == SjpContentStatus.COMPLETED.value
+
+            if is_completed:
+                completed_count += 1
+
+            toc_statuses.append(
+                SjpTocEntryStatusResponse(
+                    toc_entry_id=entry.id,
+                    title=entry.title,
+                    status=entry_status,
+                    is_completed=is_completed,
+                    generated_at=content.generated_at if content else None,
+                    error_message=content.error_message if content else None,
+                )
+            )
+
+        total_sjps = len(toc_entries)
+        progress_ratio = (completed_count / total_sjps) if total_sjps > 0 else 0.0
+
+        return SjpGenerationStatusResponse(
+            job_id=latest_job.id,
+            order_id=latest_job.order_id,
+            status=latest_job.status,
+            created_at=latest_job.created_at,
+            updated_at=latest_job.updated_at,
+            toc_generated_at=latest_job.toc_generated_at,
+            completed_at=latest_job.completed_at,
+            failed_at=latest_job.failed_at,
+            error_message=latest_job.error_message,
+            progress=SjpProgressSummaryResponse(
+                completed_sjps=completed_count,
+                total_sjps=total_sjps,
+                progress_ratio=progress_ratio,
+            ),
+            toc_entries=toc_statuses,
+        )
