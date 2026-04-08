@@ -20,3 +20,32 @@ class SjpGenerationJobResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class SjpTocEntryStatusResponse(BaseModel):
+    toc_entry_id: int = Field(..., example=1)
+    title: str = Field(..., example="Working at heights")
+    status: str = Field(..., example="completed")
+    is_completed: bool = Field(..., example=True)
+    generated_at: datetime | None = Field(None, example="2026-04-07T12:10:00Z")
+    error_message: str | None = Field(None, example="Model timeout")
+
+
+class SjpProgressSummaryResponse(BaseModel):
+    completed_sjps: int = Field(..., example=5)
+    total_sjps: int = Field(..., example=12)
+    progress_ratio: float = Field(..., example=0.4167)
+
+
+class SjpGenerationStatusResponse(BaseModel):
+    job_id: int = Field(..., example=10)
+    order_id: int = Field(..., example=123)
+    status: str = Field(..., example="generating_sjps")
+    created_at: datetime = Field(..., example="2026-04-07T12:00:00Z")
+    updated_at: datetime = Field(..., example="2026-04-07T12:11:00Z")
+    toc_generated_at: datetime | None = Field(None, example="2026-04-07T12:03:00Z")
+    completed_at: datetime | None = Field(None, example="2026-04-07T12:20:00Z")
+    failed_at: datetime | None = Field(None, example="2026-04-07T12:12:00Z")
+    error_message: str | None = Field(None, example="OpenAI upstream error")
+    progress: SjpProgressSummaryResponse
+    toc_entries: list[SjpTocEntryStatusResponse] = Field(default_factory=list)

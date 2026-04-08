@@ -10,7 +10,9 @@ from app.services.sjp_generation_service import (
     OrderNotFound,
     InvalidOrderState,
     MissingIndustryProfile,
+    SjpGenerationJobNotFound,
 )
+from app.schemas.sjp import SjpGenerationStatusResponse
 
 router = APIRouter()
 
@@ -84,3 +86,30 @@ def initiate_sjp_generation(
         status=job.status,
         created_at=job.created_at,
     )
+
+
+@router.get(
+    "/{order_id}/status",
+    response_model=SjpGenerationStatusResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get SJP generation status for an order",
+)
+def get_sjp_generation_status(
+    order_id: int,
+    user_context: dict = Depends(get_authenticated_user_context),
+    sjp_service: SjpGenerationService = Depends(get_sjp_generation_service),
+) -> SjpGenerationStatusResponse:
+    user_id = int(user_context["id"])
+
+    try:
+        return sjp_service.get_generation_status(order_id=order_id, user_id=user_id)
+    except OrderNotFound as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except SjpGenerationJobNotFound as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
