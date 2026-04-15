@@ -7,6 +7,7 @@ from app.api.dependencies import (
     get_order_repository,
     get_order_status_repository,
     get_payment_service,
+    get_sjp_generation_service,
 )
 from app.models.order_status import OrderStatusEnum, PaymentStatus
 from app.repositories.order_repository import OrderRepository
@@ -14,6 +15,7 @@ from app.repositories.order_status_repository import OrderStatusRepository
 from app.schemas.payment import StripeWebhookEventType
 from app.services.order_fulfillment_service import OrderFulfillmentService
 from app.services.payment_service import PaymentService
+from app.services.sjp_generation_service import SjpGenerationService
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +32,7 @@ async def handle_stripe_webhook(
     payment_service: PaymentService = Depends(get_payment_service),
     order_repo: OrderRepository = Depends(get_order_repository),
     fulfillment_service: OrderFulfillmentService = Depends(get_order_fulfillment_service),
+    sjp_service: SjpGenerationService = Depends(get_sjp_generation_service),
 ) -> dict:
     signature = request.headers.get("stripe-signature") or request.headers.get("Stripe-Signature")
     body = await request.body()
@@ -62,6 +65,7 @@ async def handle_stripe_webhook(
             order_status_repo=order_status_repo,
             order_repo=order_repo,
             fulfillment_service=fulfillment_service,
+            sjp_service=sjp_service,
         )
 
     if event.event_type == StripeWebhookEventType.CHECKOUT_SESSION_EXPIRED:
@@ -93,6 +97,7 @@ def _handle_checkout_completed(
     order_status_repo: OrderStatusRepository,
     order_repo: OrderRepository,
     fulfillment_service: OrderFulfillmentService,
+    sjp_service: SjpGenerationService,
 ) -> dict:
     order_status = order_status_repo.get_by_id(order_id)
     if order_status and order_status.payment_status == PaymentStatus.PAID.value:
@@ -104,6 +109,20 @@ def _handle_checkout_completed(
         order_status_repo.update_stripe_payment_intent_id(order_id, event.payment_intent_id)
 
     order = order_repo.get_by_id_with_relations(order_id)
+
+    if order and order.is_industry_specific:
+        order_status_repo.update_order_status(order_id, OrderStatusEnum.PROCESSING)
+        try:
+            sjp_service.start_generation_for_webhook(order_id)
+            logger.info(
+                "Order %d is industry-specific, SJP generation started. Will move to review_pending on completion.",
+                order_id,
+            )
+        except Exception:
+            logger.error("Failed to start SJP generation for order %d", order_id, exc_info=True)
+            order_status_repo.update_order_status(order_id, OrderStatusEnum.REVIEW_PENDING)
+        return {"status": "ok", "action": "sjp_generation_started"}
+
     if order and order.plan and order.plan.requires_approval:
         order_status_repo.update_order_status(order_id, OrderStatusEnum.REVIEW_PENDING)
         logger.info("Order %d requires approval, set to review_pending", order_id)
@@ -141,5 +160,3 @@ def _handle_payment_intent_failed(
     order_status_repo.mark_as_failed(order_id)
     logger.info("Payment intent failed for order %d", order_id)
     return {"status": "ok", "action": "marked_failed"}
-
-

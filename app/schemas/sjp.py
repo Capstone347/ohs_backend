@@ -49,3 +49,48 @@ class SjpGenerationStatusResponse(BaseModel):
     error_message: str | None = Field(None, example="OpenAI upstream error")
     progress: SjpProgressSummaryResponse
     toc_entries: list[SjpTocEntryStatusResponse] = Field(default_factory=list)
+
+
+class SjpContentSections(BaseModel):
+    task_description: str
+    required_ppe: list[str]
+    step_by_step_instructions: list[str]
+    identified_hazards: list[str]
+    control_measures: list[str]
+    training_requirements: list[str]
+    emergency_procedures: str
+    legislative_references: str | None = None
+
+
+class SjpContentResponse(BaseModel):
+    toc_entry_id: int
+    title: str
+    position: int
+    status: str
+    sections: SjpContentSections | None = None
+    generated_at: datetime | None = None
+    error_message: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class SjpFullContentResponse(BaseModel):
+    job_id: int
+    order_id: int
+    province: str
+    naics_codes: list[str]
+    status: str
+    disclaimer: str
+    entries: list[SjpContentResponse] = Field(default_factory=list)
+
+
+class SjpContentEditRequest(BaseModel):
+    task_description: str | None = None
+    required_ppe: list[str] | None = None
+    step_by_step_instructions: list[str] | None = None
+    identified_hazards: list[str] | None = None
+    control_measures: list[str] | None = None
+    training_requirements: list[str] | None = None
+    emergency_procedures: str | None = None
+    legislative_references: str | None = None

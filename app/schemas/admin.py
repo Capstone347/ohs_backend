@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AdminOrderListItem(BaseModel):
@@ -110,6 +110,10 @@ class AdminPlanResponse(BaseModel):
 
 class PlanApprovalSettingRequest(BaseModel):
     requires_approval: bool
+
+
+class PlanPriceUpdateRequest(BaseModel):
+    base_price: Decimal = Field(..., ge=0, max_digits=10, decimal_places=2)
 
 
 class AdminStatsResponse(BaseModel):

@@ -76,3 +76,11 @@ class JurisdictionServiceException(ServiceException):
 class JurisdictionPackLoadError(JurisdictionServiceException):
     pass
 
+
+class LlmProviderException(ServiceException):
+    pass
+
+
+class LlmRateLimitException(LlmProviderException):
+    pass
+

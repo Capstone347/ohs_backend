@@ -1,15 +1,28 @@
 # Getting Started — OHS Remote Backend
 
-This guide covers everything you need to get the project running locally from scratch. Follow each section in order.
+This guide covers everything you need to get the project running locally from scratch. **Follow every section in order** — skipping ahead will not work, because the app refuses to start if any required environment variable is missing.
+
+> **Docker is the only supported path.** Every command in this guide assumes you are running the stack through `docker-compose`. Local (non-Docker) development is intentionally not documented — the Docker setup is what we trust to produce a working environment on any machine.
 
 ---
 
-## Prerequisites
+## What you will need accounts for
 
-Install the following before continuing:
+Before you start, create (or get invited to) all of the following. Each one provides one or more values you will paste into `.env.docker`.
+
+| Account | Used for | Signup |
+|---|---|---|
+| Google | Gmail App Password for sending email in dev | [https://myaccount.google.com](https://myaccount.google.com) |
+| ngrok | Public tunnel so Stripe webhooks can reach your laptop | [https://dashboard.ngrok.com/signup](https://dashboard.ngrok.com/signup) |
+| Stripe | Payment processing (use **Test mode** — ask the project lead for an invite to the shared project) | [https://dashboard.stripe.com](https://dashboard.stripe.com) |
+| OpenAI | AI generation of Safe Job Procedure (SJP) content | [https://platform.openai.com](https://platform.openai.com) |
+
+You will also need to install:
 
 - **Docker Desktop** — [https://www.docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop)
 - **Git** — [https://git-scm.com/downloads](https://git-scm.com/downloads)
+
+Nothing else is required on your host machine. Python, MySQL, and all system libraries live inside the Docker containers.
 
 ---
 
@@ -177,7 +190,28 @@ Every time Docker restarts, ngrok gets a new URL. You must update the webhook en
 
 ---
 
-## Step 6 — Start the App
+## Step 6 — OpenAI API Key
+
+The SJP (Safe Job Procedure) generation feature calls the OpenAI API. `OPENAI_API_KEY` is a **required** setting in `app/config.py` — the app will refuse to start without it, even if you do not plan on using SJP generation yourself.
+
+### Get an API key
+
+1. Go to [https://platform.openai.com](https://platform.openai.com) and sign in (or create an account)
+2. Click your profile (top-right) → **View API keys**, or go directly to [https://platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+3. Click **Create new secret key**, give it a name like `ohs-remote-dev`, and copy the key — you will not be able to see it again
+4. If your account has no free credit, add a small amount of prepaid credit at [https://platform.openai.com/settings/organization/billing](https://platform.openai.com/settings/organization/billing). The default model is `gpt-5-mini`, which is cheap — a few dollars lasts a long time in development.
+
+### Fill in `.env.docker`
+
+```env
+OPENAI_API_KEY=sk-...
+```
+
+The other `LLM_*` variables in `.env.docker` have sensible defaults — leave them commented out unless you have a reason to change them.
+
+---
+
+## Step 7 — Start the App
 
 Once all values are filled in `.env.docker`, start everything:
 
@@ -210,15 +244,15 @@ docker-compose up --build        # Rebuild after dependency changes
 
 ---
 
-## Step 7 — Seed the Database
+## Step 8 — Seed the Database
 
-After the app is running for the first time, seed the plans:
+Alembic migrations run automatically when the `app` container starts. You only need to seed the initial list of plans one time, after the containers are up:
 
 ```bash
-docker-compose exec app python scripts/seed_database.py
+docker-compose exec app python scripts/seed_plans.py
 ```
 
-This creates the available service plans in the database.
+This creates the available service plans (Basic, Comprehensive, Industry-Specific) in the database. Running it a second time is safe — it is idempotent.
 
 ---
 
@@ -234,6 +268,7 @@ This creates the available service plans in the database.
 | `STRIPE_API_KEY` | Stripe dashboard → Developers → API keys ([link](https://dashboard.stripe.com/test/apikeys)) |
 | `STRIPE_PUBLISHABLE_KEY` | Same page as above |
 | `STRIPE_WEBHOOK_SECRET` | Stripe dashboard → Developers → Webhooks → your endpoint → Signing secret |
+| `OPENAI_API_KEY` | OpenAI dashboard → API keys ([link](https://platform.openai.com/api-keys)) |
 | `ALLOWED_ORIGINS` | Add your ngrok URL from [http://localhost:4040](http://localhost:4040) after starting |
 
 Everything else in `.env.docker` is pre-configured for local development and does not need to be changed.
@@ -282,3 +317,13 @@ DATABASE_URL=mysql+pymysql://ohs_dev_user:ohs_dev_password@mysql:3306/ohs_remote
 - Verify `NGROK_AUTHTOKEN` is set correctly in `.env.docker`
 - Confirm the token is from your account at [https://dashboard.ngrok.com/get-started/your-authtoken](https://dashboard.ngrok.com/get-started/your-authtoken)
 - Free ngrok accounts allow one active tunnel at a time — close any other running ngrok sessions
+
+### OpenAI errors when generating an SJP
+
+- Confirm `OPENAI_API_KEY` is set and starts with `sk-`
+- Check your OpenAI billing — new accounts without credit get `insufficient_quota` errors
+- Watch `docker-compose logs -f app` while triggering the SJP endpoint to see the exact error from the OpenAI SDK
+
+---
+
+For a full catalogue of failure modes and fixes, see **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)**.

@@ -15,6 +15,15 @@ class DocumentDeliveryContext(BaseModel):
     company_name: str = Field(..., min_length=1)
     download_link: str = Field(..., min_length=1)
     document_name: str = Field(..., min_length=1)
+    sjp_download_link: str | None = None
+    sjp_count: int | None = None
+
+
+class SjpDeliveryContext(BaseModel):
+    order_id: int = Field(..., gt=0)
+    company_name: str = Field(..., min_length=1)
+    sjp_download_link: str = Field(..., min_length=1)
+    sjp_count: int = Field(..., ge=1)
 
 
 class AuthOtpContext(BaseModel):

@@ -25,6 +25,7 @@ from app.schemas.order import (
     CompanyDetailsResponse,
     DocumentSummary,
     OrderListItem,
+    OrderPublicStatusResponse,
     PaginatedOrdersResponse,
     TimelineEntry,
     OrderDetailResponse,
@@ -41,6 +42,7 @@ from app.repositories.user_repository import UserRepository
 from app.repositories.plan_repository import PlanRepository
 from app.repositories.industry_profile_repository import IndustryProfileRepository
 from app.models.company import Company
+from app.models.plan import PlanSlug
 from app.models.user import User, UserRole
 
 router = APIRouter()
@@ -154,14 +156,21 @@ def create_order(
         company = company_repo.create(company)
     
     total_amount = Decimal(plan.base_price)
-    
+
+    is_industry_specific = request.is_industry_specific or plan.slug == PlanSlug.INDUSTRY_SPECIFIC.value
+
+    if is_industry_specific and plan.slug != PlanSlug.INDUSTRY_SPECIFIC.value:
+        sjp_plan = plan_repo.get_by_slug(PlanSlug.INDUSTRY_SPECIFIC.value)
+        if sjp_plan:
+            total_amount += Decimal(sjp_plan.base_price)
+
     order = order_service.create_order(
         user_id=user.id,
         company_id=company.id,
         plan_id=plan.id,
         jurisdiction=request.jurisdiction,
         total_amount=total_amount,
-        is_industry_specific=False,
+        is_industry_specific=is_industry_specific,
     )
     
     return OrderCreatedResponse(
@@ -285,6 +294,34 @@ async def update_company_details(
         company_details = build_company_details_response(order.company)
     
     return _build_order_summary(order, company_details)
+
+
+@router.get(
+    "/{order_id}/status",
+    response_model=OrderPublicStatusResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Public order status check (no auth required)",
+)
+def get_order_public_status(
+    order_id: int,
+    order_service: OrderService = Depends(get_order_service),
+) -> OrderPublicStatusResponse:
+    try:
+        order = order_service.get_order_with_relations(order_id)
+    except RecordNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Order {order_id} not found"
+        )
+
+    return OrderPublicStatusResponse(
+        order_id=order.id,
+        order_status=order.order_status.order_status,
+        payment_status=order.order_status.payment_status,
+        plan_name=order.plan.name if order.plan else None,
+        is_industry_specific=order.is_industry_specific,
+        created_at=order.created_at,
+    )
 
 
 @router.get(
@@ -413,6 +450,7 @@ def _build_order_detail(order) -> OrderDetailResponse:
     profile = order.company.industry_profile if order.company else None
     naics_codes = [entry.code for entry in profile.naics_codes] if profile else []
 
+    is_available = order.order_status.order_status == OrderStatusEnum.AVAILABLE.value
     document_summaries = [
         DocumentSummary(
             document_id=doc.document_id,
@@ -422,7 +460,7 @@ def _build_order_detail(order) -> OrderDetailResponse:
             file_format=doc.file_format or "docx",
         )
         for doc in (order.documents or [])
-    ]
+    ] if is_available else []
 
     return OrderDetailResponse(
         order_id=order.id,
@@ -475,6 +513,7 @@ def _build_timeline(order) -> list[TimelineEntry]:
 
 
 def _build_order_summary(order, company_details: CompanyDetailsResponse | None) -> OrderSummaryResponse:
+    is_available = order.order_status.order_status == OrderStatusEnum.AVAILABLE.value
     document_summaries = [
         DocumentSummary(
             document_id=doc.document_id,
@@ -484,7 +523,7 @@ def _build_order_summary(order, company_details: CompanyDetailsResponse | None) 
             file_format=doc.file_format or "docx",
         )
         for doc in (order.documents or [])
-    ]
+    ] if is_available else []
 
     return OrderSummaryResponse(
         order_id=order.id,

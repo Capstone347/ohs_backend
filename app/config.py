@@ -1,3 +1,4 @@
+from decimal import Decimal
 from enum import Enum
 from pathlib import Path
 
@@ -62,6 +63,13 @@ class Settings(BaseSettings):
     
     max_logo_size_mb: int = Field(default=5)
     allowed_logo_extensions: str = Field(default=".png,.jpg,.jpeg,.svg")
+
+    openai_api_key: str = Field(...)
+    llm_model: str = Field(default="gpt-5-mini")
+    llm_temperature: float = Field(default=0.3)
+    llm_max_concurrent_requests: int = Field(default=3)
+    llm_input_cost_per_1k_tokens: Decimal = Field(default=Decimal("0.00015"))
+    llm_output_cost_per_1k_tokens: Decimal = Field(default=Decimal("0.0006"))
     
     @field_validator("allowed_origins", mode="before")
     @classmethod

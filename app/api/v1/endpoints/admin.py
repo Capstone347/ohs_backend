@@ -14,6 +14,7 @@ from app.api.dependencies import (
     get_order_repository,
     get_owner_admin_context,
     get_plan_repository,
+    get_sjp_generation_service,
     get_user_repository,
 )
 from app.models.order import Order
@@ -38,11 +39,18 @@ from app.schemas.admin import (
     CreateAdminUserRequest,
     OrderApproveRequest,
     PlanApprovalSettingRequest,
+    PlanPriceUpdateRequest,
     TemplateListItem,
 )
+from app.schemas.sjp import SjpContentEditRequest, SjpFullContentResponse
 from app.services.admin_auth_service import AdminAuthService
 from app.services.admin_order_service import AdminOrderService
 from app.services.admin_stats_service import AdminStatsService
+from app.services.sjp_generation_service import (
+    SjpGenerationJobNotFound,
+    SjpGenerationService,
+    OrderNotFound as SjpOrderNotFound,
+)
 
 router = APIRouter()
 
@@ -362,6 +370,21 @@ def update_plan_approval_setting(
     return AdminPlanResponse.model_validate(plan)
 
 
+@router.patch(
+    "/plans/{plan_id}/price",
+    response_model=AdminPlanResponse,
+    status_code=status.HTTP_200_OK,
+)
+def update_plan_price(
+    body: PlanPriceUpdateRequest,
+    plan_id: int = PathParam(..., gt=0),
+    _admin: dict = Depends(get_owner_admin_context),
+    plan_repo: PlanRepository = Depends(get_plan_repository),
+) -> AdminPlanResponse:
+    plan = plan_repo.update_base_price(plan_id, body.base_price)
+    return AdminPlanResponse.model_validate(plan)
+
+
 # ── Template Management ──
 
 
@@ -494,6 +517,59 @@ def list_email_logs(
         page_size=page_size,
         total_pages=math.ceil(total / page_size) if total > 0 else 0,
     )
+
+
+# ── SJP Content Review ──
+
+
+@router.get(
+    "/orders/{order_id}/sjp-content",
+    response_model=SjpFullContentResponse,
+    status_code=status.HTTP_200_OK,
+)
+def get_sjp_content_for_review(
+    order_id: int = PathParam(..., gt=0),
+    _admin: dict = Depends(get_authenticated_admin_context),
+    sjp_service: SjpGenerationService = Depends(get_sjp_generation_service),
+) -> SjpFullContentResponse:
+    try:
+        return sjp_service.get_full_content(order_id=order_id, user_id=None)
+    except (SjpOrderNotFound, SjpGenerationJobNotFound) as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.patch(
+    "/sjp-content/{toc_entry_id}",
+    status_code=status.HTTP_200_OK,
+)
+def edit_sjp_content(
+    body: SjpContentEditRequest,
+    toc_entry_id: int = PathParam(..., gt=0),
+    _admin: dict = Depends(get_authenticated_admin_context),
+    sjp_service: SjpGenerationService = Depends(get_sjp_generation_service),
+) -> dict:
+    try:
+        updates = body.model_dump(exclude_none=True)
+        sjp_service.update_sjp_content(toc_entry_id, updates)
+        return {"message": "content updated", "toc_entry_id": toc_entry_id}
+    except SjpGenerationJobNotFound as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post(
+    "/sjp-content/{toc_entry_id}/regenerate",
+    status_code=status.HTTP_200_OK,
+)
+async def regenerate_single_sjp(
+    toc_entry_id: int = PathParam(..., gt=0),
+    _admin: dict = Depends(get_authenticated_admin_context),
+    sjp_service: SjpGenerationService = Depends(get_sjp_generation_service),
+) -> dict:
+    try:
+        await sjp_service.regenerate_single_sjp(toc_entry_id)
+        return {"message": "regeneration started", "toc_entry_id": toc_entry_id}
+    except SjpGenerationJobNotFound as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 # ── Admin Staff Management (Owner only) ──

@@ -41,29 +41,34 @@ try:
         print("Ensuring required plans exist...")
 
         plans_to_seed = [
-            ("basic", "Basic", "Basic OHS manual", BASIC_PLAN_PRICE),
-            ("comprehensive", "Comprehensive", "Comprehensive OHS manual", COMPREHENSIVE_PLAN_PRICE),
+            ("basic", "Basic", "Basic OHS manual", BASIC_PLAN_PRICE, False),
+            ("comprehensive", "Comprehensive", "Comprehensive OHS manual", COMPREHENSIVE_PLAN_PRICE, False),
             (
                 "industry_specific",
                 "Industry Specific",
                 "Industry-specific SJP generation for existing manuals",
                 INDUSTRY_SPECIFIC_PLAN_PRICE,
+                True,
             ),
         ]
 
         inserted = 0
-        for slug, name, description, base_price in plans_to_seed:
+        for slug, name, description, base_price, requires_approval in plans_to_seed:
             cursor.execute("SELECT id FROM plans WHERE slug = %s", (slug,))
             existing = cursor.fetchone()
             if existing:
+                cursor.execute(
+                    "UPDATE plans SET requires_approval = %s WHERE slug = %s",
+                    (requires_approval, slug),
+                )
                 continue
 
             cursor.execute(
                 """
-                INSERT INTO plans (slug, name, description, base_price)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO plans (slug, name, description, base_price, requires_approval)
+                VALUES (%s, %s, %s, %s, %s)
                 """,
-                (slug, name, description, str(base_price)),
+                (slug, name, description, str(base_price), requires_approval),
             )
             inserted += 1
         

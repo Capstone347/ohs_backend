@@ -411,11 +411,12 @@ settings = Settings()
 
 ### Environment-Specific Config
 
-Different `.env` files for each environment:
-- `.env` - Local development (gitignored)
-- `.env.example` - Template with documentation
-- `.env.staging` - Staging environment
-- `.env.production` - Production environment
+The repository ships two environment-file templates:
+
+- `.env.example` — template for running the app **outside** Docker (unsupported, reference only).
+- `.env.docker.example` — template for running the full stack via `docker-compose` (the supported path). Copy to `.env.docker` and fill in the required values.
+
+For production, every required variable should be injected by your deployment platform's secret store. See [../GETTING_STARTED.md](../GETTING_STARTED.md) for the full first-run checklist.
 
 ### Usage
 
@@ -533,8 +534,15 @@ order = db.query(Order).filter(Order.id == order_id).first()
 
 ### Authentication & Authorization
 
-Phase 1: No authentication
-Phase 2+: JWT tokens with short expiration
+The backend uses an **email OTP + session cookie** scheme for end users:
+
+1. `POST /api/v1/auth/request-otp` sends a one-time code to the user's email via SMTP.
+2. `POST /api/v1/auth/verify-otp` verifies the code and sets an httpOnly `auth_session` cookie.
+3. Protected endpoints (e.g. `GET /api/v1/orders` for the user dashboard) read the cookie on every request.
+
+Rate limits on OTP request and verify are enforced by config knobs in `app/config.py` (`auth_otp_*`).
+
+The unauthenticated part of the order-creation flow is public on purpose — see [API_OVERVIEW.md](API_OVERVIEW.md) for the full list of which endpoints require a session. Admin endpoints use a separate auth flow documented in [ADMIN_API.md](ADMIN_API.md).
 
 ### Secrets Management
 
