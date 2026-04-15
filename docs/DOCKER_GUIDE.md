@@ -1,551 +1,169 @@
-# Docker Setup Guide
+# Docker Guide
 
-This guide explains the Docker configuration for the OHS Remote backend and how to work with it effectively.
-
----
-
-## What is Docker?
-
-Docker allows you to run applications in isolated containers - think of them as lightweight virtual machines. This ensures everyone on the team has the exact same development environment.
-
-### Key Concepts
-
-**Container:**
-A running instance of your application with all its dependencies. Isolated from your host machine.
-
-**Image:**
-A blueprint for containers. Built from a Dockerfile.
-
-**Volume:**
-Shared storage between your host machine and container. Changes persist even when container stops.
-
-**Network:**
-Allows containers to communicate with each other.
+This guide explains how the Docker Compose stack is wired together and the day-to-day commands you need to work with it. **Docker is the only supported development path for this project** — if you are setting up for the first time, read [GETTING_STARTED.md](../GETTING_STARTED.md) first and come back here when you have the stack running.
 
 ---
 
-## Project Docker Setup
+## What is Docker, briefly
 
-### docker-compose.yml
+- **Image** — a built, immutable blueprint for a container (created from a `Dockerfile`).
+- **Container** — a running instance of an image. Isolated from your host OS.
+- **Volume** — persistent storage managed by Docker. Our MySQL data lives in a volume so it survives container restarts.
+- **Bind mount** — a host directory exposed inside a container. We use bind mounts so code edits on your laptop take effect inside the running app container immediately.
+- **docker-compose** — describes and starts multiple containers at once from a single YAML file.
 
-Our project uses Docker Compose to run multiple services:
-
-1. **MySQL Database** - Stores application data
-2. **FastAPI Application** - Runs the backend API
-3. **Ngrok Tunnel** - Exposes the API publicly for frontend and webhook access
-
-### Services Breakdown
-
-#### MySQL Service
-
-```yaml
-mysql:
-  image: mysql:8.0
-  ports:
-    - "3306:3306"
-  environment:
-    MYSQL_DATABASE: ohs_remote
-    MYSQL_USER: ohs_user
-    MYSQL_PASSWORD: ohs_password
-  volumes:
-    - mysql_data:/var/lib/mysql
-```
-
-**What this does:**
-- Downloads MySQL 8.0 image
-- Exposes port 3306 so you can connect from host
-- Creates database and user automatically
-- Stores data in a volume (persists between restarts)
-- Has health check to ensure it's ready before app starts
-
-#### App Service
-
-```yaml
-app:
-  build:
-    context: .
-    dockerfile: docker/Dockerfile
-  ports:
-    - "8000:8000"
-  volumes:
-    - ./data:/app/data
-    - ./templates:/app/templates
-  depends_on:
-    mysql:
-      condition: service_healthy
-```
-
-**What this does:**
-- Builds application from [docker/Dockerfile](cci:7://file:///Users/gustavocamargo/Developer/University/ohs_remote/docker/Dockerfile:0:0-0:0)
-- Exposes port 8000 for API access
-- Mounts local directories for hot reload
-- Waits for MySQL to be healthy before starting
-- Runs with auto-reload for development
-
-#### Ngrok Service
-
-```yaml
-ngrok:
-  image: ngrok/ngrok:latest
-  environment:
-    NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
-  command: http app:8000 --log stdout
-  ports:
-    - "4040:4040"
-  depends_on:
-    - app
-```
-
-**What this does:**
-- Creates a public HTTPS tunnel to the backend API running on port 8000
-- Exposes ngrok's inspection dashboard on `http://localhost:4040`
-- Reads your auth token from the `NGROK_AUTHTOKEN` environment variable
-- Waits for the app service to start before creating the tunnel
-- The public URL changes on each restart (unless you have a paid ngrok plan with a static domain)
-
-**Setup:**
-1. Sign up at [https://dashboard.ngrok.com](https://dashboard.ngrok.com)
-2. Copy your auth token from the dashboard
-3. Add `NGROK_AUTHTOKEN=your_token` to your `.env.docker` file
-
-**Getting the public URL:**
-- Open the ngrok dashboard at `http://localhost:4040` to see the assigned public URL
-- Or run: `docker-compose logs ngrok` and look for the `Forwarding` line
-- Use this URL as your `APP_BASE_URL` and in your frontend API config
-- Use this URL for external webhook endpoints (e.g., Stripe webhook URL)
+If you are new to Docker, these are the only concepts you need to be productive here.
 
 ---
 
-## Common Commands
+## The stack
 
-### Starting the Application
+`docker-compose.yml` defines three services on a private network called `ohs-network-dev`:
+
+| Service | Image | Host port | Purpose |
+|---|---|---|---|
+| `mysql` | `mysql:8.0` | `3307` | MySQL database. Data persisted in the `mysql_dev_data` volume. |
+| `app` | built from `docker/Dockerfile` | `8000` | FastAPI app. Runs `alembic upgrade head` then `uvicorn` with `--reload`. |
+| `ngrok` | `ngrok/ngrok:latest` | `4040` | Public HTTPS tunnel to `app:8000` so Stripe can deliver webhooks. |
+
+### Key configuration points
+
+- **Database credentials** (defined in `docker-compose.yml`, used inside the Docker network):
+  - Database: `ohs_remote_dev`
+  - User: `ohs_dev_user` / password: `ohs_dev_password`
+  - Root password: `root_password`
+  - Host (from inside the `app` container): `mysql`
+  - Host (from your laptop, e.g. MySQL Workbench): `localhost` on port `3307`
+- **Healthchecks** — `mysql` has a `mysqladmin ping` healthcheck. The `app` service waits for `mysql` to be `healthy` before starting, so you will not see "can't connect to MySQL" on startup unless something is genuinely wrong.
+- **Bind mounts** — `./app`, `./alembic`, `./scripts`, `./data`, and `./templates` are mounted into the `app` container. Edits to Python code on your laptop are picked up by the uvicorn reloader instantly, no rebuild required.
+- **Env file** — the `app` service reads `.env.docker`. The `ngrok` service reads `NGROK_AUTHTOKEN` directly from the host environment (which also comes from `.env.docker` because docker-compose auto-loads it).
+- **Migrations on startup** — the `app` container's command runs `alembic upgrade head` before launching uvicorn. You do not need to run migrations manually unless you are creating a new one.
+
+### Where ports come from
+
+- `app` — `8000:8000`. API on http://localhost:8000, Swagger on http://localhost:8000/docs.
+- `mysql` — `3307:3306`. Use `localhost:3307` from your host. **Inside** the `app` container the hostname is `mysql` on the internal port `3306`.
+- `ngrok` — `4040:4040`. Dashboard on http://localhost:4040, which shows your current public `https://*.ngrok-free.app` URL.
+
+---
+
+## First run
+
+From a clean checkout:
 
 ```bash
-# Start all services
-docker-compose up
-
-# Start in background (detached mode)
-docker-compose up -d
-
-# Rebuild and start (after dependency changes)
+cp .env.docker.example .env.docker
+# fill in the required values — see GETTING_STARTED.md
 docker-compose up --build
 ```
 
-**First run takes 3-5 minutes** as Docker:
-1. Downloads MySQL image (~200MB)
-2. Builds application image
-3. Installs Python dependencies
-4. Starts services
+The first build takes several minutes (Docker downloads the MySQL and Python base images, then installs Python dependencies). Subsequent runs start in ~10–30 seconds because everything is cached.
 
-**Subsequent runs take 10-30 seconds** as images are cached.
-
-### Viewing Logs
+After the stack is healthy, seed the plans table **once**:
 
 ```bash
-# Follow all logs
-docker-compose logs -f
+docker-compose exec app python scripts/seed_plans.py
+```
 
-# Follow specific service
-docker-compose logs -f app
+---
 
-# View last 100 lines
+## Day-to-day commands
+
+### Lifecycle
+
+```bash
+docker-compose up                # start (foreground, follow logs)
+docker-compose up -d             # start in the background
+docker-compose up --build        # rebuild the app image after a dependency change
+docker-compose down              # stop and remove containers (keeps the DB volume)
+docker-compose down -v           # stop and remove containers AND the DB volume — fresh DB
+docker-compose restart app       # restart just the app
+docker-compose ps                # list running services and health
+```
+
+### Logs
+
+```bash
+docker-compose logs -f app       # follow app logs
+docker-compose logs -f mysql     # follow MySQL logs
+docker-compose logs -f ngrok     # follow ngrok — shows the current public URL
 docker-compose logs --tail=100 app
 ```
 
-### Stopping the Application
+### Shelling in
 
 ```bash
-# Stop services (keeps containers)
-docker-compose stop
-
-# Stop and remove containers
-docker-compose down
-
-# Remove containers and volumes (deletes database!)
-docker-compose down -v
+docker-compose exec app bash                 # interactive shell in the app container
+docker-compose exec app python               # Python REPL inside the app
+docker-compose exec mysql mysql -u ohs_dev_user -pohs_dev_password ohs_remote_dev
 ```
 
-### Restarting Services
+### Tests, linting, type-checking
+
+All tooling runs **inside** the `app` container so you get the exact dependencies specified in `requirements.txt` / `requirements-dev.txt`:
 
 ```bash
-# Restart all services
-docker-compose restart
-
-# Restart specific service
-docker-compose restart app
-```
-
-### Running Commands in Containers
-
-```bash
-# Run command in app container
-docker-compose exec app <command>
-
-# Examples:
 docker-compose exec app pytest
-docker-compose exec app alembic upgrade head
-docker-compose exec app python scripts/seed_database.py
-
-# Access MySQL shell
-docker-compose exec mysql mysql -u ohs_user -pohs_password ohs_remote
+docker-compose exec app pytest tests/unit/
+docker-compose exec app pytest --cov=app --cov-report=html
+docker-compose exec app ruff check app/
+docker-compose exec app ruff check app/ --fix
+docker-compose exec app mypy app/
 ```
+
+### Database migrations
+
+Migrations are applied automatically on `app` startup. You only run alembic manually when authoring a new migration or debugging:
+
+```bash
+docker-compose exec app alembic current
+docker-compose exec app alembic upgrade head
+docker-compose exec app alembic downgrade -1
+docker-compose exec app alembic revision -m "add foo column to orders"
+```
+
+After creating a new revision, edit the generated file under `alembic/versions/` and add both `upgrade()` and `downgrade()` bodies before restarting the app.
+
+### Adding a Python dependency
+
+Dependencies are frozen inside the image. After editing `requirements.txt` you must rebuild:
+
+```bash
+docker-compose up --build
+```
+
+A plain `docker-compose restart app` is **not** enough — the new package is not in the image yet.
 
 ---
 
-## Development Workflow
+## Dockerfile overview
 
-### Making Code Changes
+`docker/Dockerfile` starts from `python:3.11-slim`, installs the system libraries needed by `mysqlclient` and `python-docx` (`gcc`, `default-libmysqlclient-dev`, `pkg-config`, etc.), installs Python dependencies from `requirements.txt`, creates the `data/` subdirectories used for runtime file storage, exposes port 8000, and runs `uvicorn app.main:app`.
 
-1. **Edit code in your editor** (VS Code, PyCharm, etc.)
-2. **Application auto-reloads** (thanks to `--reload` flag)
-3. **Test changes** in browser or Postman
-
-No need to restart container for Python code changes!
-
-### Adding New Dependencies
-
-When you add a package to `requirements.txt`:
-
-```bash
-# Rebuild the container
-docker-compose up --build
-
-# Or rebuild without starting
-docker-compose build
-```
-
-### Database Changes
-
-After creating a new Alembic migration:
-
-```bash
-# Run migration
-docker-compose exec app alembic upgrade head
-
-# Check current version
-docker-compose exec app alembic current
-
-# Rollback
-docker-compose exec app alembic downgrade -1
-```
-
-### Running Tests
-
-```bash
-# All tests
-docker-compose exec app pytest
-
-# Specific test file
-docker-compose exec app pytest tests/api/test_health.py
-
-# With coverage
-docker-compose exec app pytest --cov=app
-```
+The dependency install happens **before** the application source is copied so that Docker's layer cache is reused when only application code changes. Editing `app/` code does not invalidate the pip install layer.
 
 ---
 
 ## Troubleshooting
 
-### Port Already in Use
+The most common Docker problems and their fixes live in **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**. Check there before anything else — it covers missing env vars, port conflicts, stale migrations, ngrok auth issues, and database state problems.
 
-**Error:**
-```
-ERROR: for ohs-remote-app  Cannot start service app: 
-Ports are not available: listen tcp 0.0.0.0:8000: bind: address already in use
-```
-
-**Solution:**
-Stop the application using that port:
+Quick first-response commands when something looks wrong:
 
 ```bash
-# Find process using port 8000
-lsof -i :8000
-
-# Kill it
-kill -9 <PID>
-
-# Or change port in docker-compose.yml
-ports:
-  - "8001:8000"  # Use port 8001 on host
-```
-
-### Container Won't Start
-
-**Error:**
-```
-ERROR: Service 'app' failed to build
-```
-
-**Solution:**
-Check build logs for specific error:
-
-```bash
-# Clean build
-docker-compose build --no-cache
-
-# View detailed logs
-docker-compose up --build
-```
-
-### Database Connection Failed
-
-**Error:**
-```
-Can't connect to MySQL server on 'mysql'
-```
-
-**Solutions:**
-
-1. **Wait longer** - MySQL takes ~30 seconds to fully initialize on first run
-
-2. **Check MySQL is running:**
-```bash
-docker-compose ps
-# Should show mysql as "healthy"
-```
-
-3. **Restart MySQL:**
-```bash
-docker-compose restart mysql
-docker-compose logs -f mysql
-```
-
-### Changes Not Reflecting
-
-If code changes aren't showing:
-
-1. **Check auto-reload is working:**
-```bash
-docker-compose logs -f app
-# Should see "Reloading..." when you save files
-```
-
-2. **Verify volume mounting:**
-```bash
-docker-compose exec app ls -la /app
-# Should show your project files
-```
-
-3. **Restart container:**
-```bash
+docker-compose ps                # is everything actually running and healthy?
+docker-compose logs --tail=200 app
 docker-compose restart app
-```
-
-### Out of Disk Space
-
-Docker images and volumes can consume significant space.
-
-**Check disk usage:**
-```bash
-docker system df
-```
-
-**Clean up:**
-```bash
-# Remove unused containers, networks, images
-docker system prune
-
-# Remove all stopped containers and unused images
-docker system prune -a
-
-# Remove volumes (WARNING: deletes data!)
-docker volume prune
+docker-compose down && docker-compose up --build   # nuclear rebuild, keeps DB
+docker-compose down -v && docker-compose up --build # truly fresh, wipes DB
 ```
 
 ---
 
-## Understanding the Dockerfile
+## Docker Compose and your `.env.docker` file
 
-[docker/Dockerfile](cci:7://file:///Users/gustavocamargo/Developer/University/ohs_remote/docker/Dockerfile:0:0-0:0) explains how to build the application image:
+Docker Compose automatically loads variables from a file named `.env` in the project root **and** passes whatever is listed under `env_file:` in `docker-compose.yml` into the target container. In this project:
 
-```dockerfile
-FROM python:3.11-slim
-```
-Start with Python 3.11 base image (lightweight version)
-
-```dockerfile
-WORKDIR /app
-```
-Set `/app` as the working directory inside container
-
-```dockerfile
-RUN apt-get update && apt-get install -y \
-    gcc \
-    default-libmysqlclient-dev \
-    pkg-config
-```
-Install system dependencies needed for MySQL Python driver
-
-```dockerfile
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-```
-Copy requirements file and install Python dependencies
-
-```dockerfile
-COPY . .
-```
-Copy entire project into container
-
-```dockerfile
-RUN mkdir -p /app/data/uploads/logos \
-    /app/data/documents/generated \
-    /app/data/documents/previews
-```
-Create directories for file storage
-
-```dockerfile
-EXPOSE 8000
-```
-Document that container listens on port 8000
-
-```dockerfile
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-Default command to run when container starts
-
----
-
-## Docker Best Practices
-
-### 1. Use .dockerignore
-
-Prevents copying unnecessary files into container:
-```
-.git
-.venv
-__pycache__
-*.pyc
-.env
-```
-
-### 2. Layer Caching
-
-Docker caches each instruction. Order matters:
-
-**Good - requirements rarely change:**
-```dockerfile
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-```
-
-**Bad - invalidates cache on every code change:**
-```dockerfile
-COPY . .
-RUN pip install -r requirements.txt
-```
-
-### 3. Volume Mounting for Development
-
-Development: Mount code as volume (changes reflect immediately)
-```yaml
-volumes:
-  - .:/app
-```
-
-Production: Copy code into image (immutable)
-```dockerfile
-COPY . .
-```
-
-### 4. Multi-Stage Builds
-
-For production, use multi-stage builds to reduce image size:
-```dockerfile
-# Build stage
-FROM python:3.11 as builder
-# Install dependencies
-
-# Production stage
-FROM python:3.11-slim
-COPY --from=builder /app /app
-```
-
----
-
-## Environment-Specific Configuration
-
-### Development (Current Setup)
-
-- Auto-reload enabled
-- Debug mode on
-- Volumes mounted for hot reload
-- Detailed logging
-
-### Production (Future)
-
-Changes for production:
-- Disable auto-reload
-- Disable debug mode
-- Use environment variables from secret manager
-- Enable proper logging and monitoring
-- Use production database with SSL
-- Run multiple workers: `--workers 4`
-
----
-
-## Quick Reference
-
-### Essential Commands
-
-```bash
-# Start
-docker-compose up
-
-# Stop
-docker-compose down
-
-# Rebuild
-docker-compose up --build
-
-# Logs
-docker-compose logs -f app
-
-# Run command
-docker-compose exec app <command>
-
-# Clean everything
-docker-compose down -v
-docker system prune -a
-```
-
-### Health Checks
-
-```bash
-# Check all containers running
-docker-compose ps
-
-# Check app health
-curl http://localhost:8000/api/v1/health
-
-# Check MySQL
-docker-compose exec mysql mysqladmin ping -h localhost
-```
-
-### Database Access
-
-```bash
-# MySQL shell
-docker-compose exec mysql mysql -u ohs_user -pohs_password ohs_remote
-
-# Run SQL file
-docker-compose exec -T mysql mysql -u ohs_user -pohs_password ohs_remote < backup.sql
-
-# Dump database
-docker-compose exec mysql mysqldump -u ohs_user -pohs_password ohs_remote > backup.sql
-```
-
----
-
-## Next Steps
-
-Now that you understand Docker setup:
-
-1. **Start the application** - `docker-compose up`
-2. **Verify it works** - Visit http://localhost:8000/docs
-3. **Make a code change** - Watch it auto-reload
-4. **Run tests** - `docker-compose exec app pytest`
-5. **Explore the containers** - `docker-compose exec app bash`
-
-Docker takes care of the environment setup so you can focus on writing code!
+- The `app` service declares `env_file: .env.docker`, so **everything inside `.env.docker` is available to the FastAPI app** as environment variables (which `Pydantic Settings` reads via `app/config.py`).
+- The `ngrok` service only needs `NGROK_AUTHTOKEN`, which it reads from the host environment. Because `.env.docker` is the file you populate, make sure `NGROK_AUTHTOKEN` is defined there.
+- Production is not configured in this repo. When you deploy, provide each variable through your platform's secret store instead of a file.

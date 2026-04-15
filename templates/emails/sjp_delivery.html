@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Safe Job Procedures Ready</title>
+  </head>
+  <body>
+    <p>Hello {{ company_name }},</p>
+    <p>
+      Your Safe Job Procedures document for order #{{ order_id }} is ready.
+      The document contains {{ sjp_count }} industry-specific Safe Job
+      Procedure{{ 's' if sjp_count > 1 else '' }}.
+    </p>
+    <p>
+      <a href="{{ sjp_download_link }}">Download Your Safe Job Procedures</a>
+    </p>
+    <p>
+      <em
+        >Please note: This document was generated using AI and has been reviewed
+        by our team. It is intended to support safe work practices and does not
+        constitute legal advice. Consult a qualified OHS professional for full
+        compliance guidance.</em
+      >
+    </p>
+    <p>Thank you, <br />OHS Remote</p>
+  </body>
+</html>

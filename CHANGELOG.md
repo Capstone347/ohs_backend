@@ -9,12 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+This section reflects work merged on top of `0.1.0` but not yet cut into a tagged release. Granular history is in `git log`; this is a human-readable summary of the headline changes.
+
+### Added
+- **Order lifecycle and persistence** — Orders, plans, companies, NAICS associations, documents, and status history modeled with SQLAlchemy + Alembic migrations.
+- **Full order-creation API flow** — Plan listing, order creation, company details + logo upload, industry intake questions, document preview generation.
+- **Document generation** — DOCX template rendering via `python-docx`, preview generation, secure token-protected download. Templates: `basic_manual`, `comprehensive_manual`, `SJP-Template`.
+- **Stripe Checkout integration** — Real Stripe payments (no more mocked phase-1 flow). Checkout session creation, webhook handler at `/api/v1/payments/webhook` that drives order status transitions, automatic document generation and email delivery on successful payment.
+- **Email delivery** — SMTP sender with Jinja2 HTML templates (`document_delivery.html`, `sjp_delivery.html`, `otp_request.html`).
+- **End-user authentication** — Email OTP + httpOnly session cookie, with per-email / per-IP rate limits and lockout.
+- **User dashboard API** — `GET /orders`, `GET /orders/{id}`, document listing, expired-token refresh.
+- **Admin API** — Separate admin auth, admin order management, admin stats. See `docs/ADMIN_API.md`.
+- **SJP (Safe Job Procedure) generation** — Async LLM-powered generation pipeline using OpenAI, jurisdiction-specific prompt packs, table-of-contents + content generation, DB-backed job tracking, progress polling endpoint, auto-resume of stuck jobs on app startup. LLM usage logging for cost monitoring. See `docs/SJP_FRONTEND_GUIDE.md`.
+- **Industry-specific standalone plan** — New plan type for customers who only want SJP content.
+- **ngrok tunnel** added to `docker-compose.yml` so Stripe webhooks can reach a developer's laptop during development.
+- **OpenAI configuration** — New required env var `OPENAI_API_KEY`, plus optional `LLM_*` tuning knobs.
+
+### Changed
+- **Required environment variables expanded** — `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, `OPENAI_API_KEY`, and the SMTP quartet are now all required. `app/config.py` is the authoritative list.
+- **Documentation formalized** — `README.md` rewritten as a lean router into `docs/`, `GETTING_STARTED.md` updated with full account-creation walkthrough, new `docs/TROUBLESHOOTING.md`, stale docs removed.
+
 ### Planned
-- Database schema and migrations (Alembic)
-- Order management endpoints
-- Document generation service
-- Payment processing integration (Stripe)
-- Email delivery service
+- Production deployment configuration (currently no production stack is checked in)
+- S3 file storage (toggle already exists as `USE_S3` but no implementation)
 
 ---
 

@@ -2,8 +2,10 @@ from datetime import UTC, datetime
 
 from app.models.order import Order
 from app.models.order_status import OrderStatusEnum, PaymentStatus
+from app.models.sjp_generation_job import SjpGenerationStatus
 from app.repositories.order_repository import OrderRepository
 from app.repositories.order_status_repository import OrderStatusRepository
+from app.repositories.sjp_generation_job_repository import SjpGenerationJobRepository
 from app.services.exceptions import InvalidOrderStateException
 from app.services.order_fulfillment_service import OrderFulfillmentService
 
@@ -14,10 +16,12 @@ class AdminOrderService:
         order_repo: OrderRepository,
         order_status_repo: OrderStatusRepository,
         fulfillment_service: OrderFulfillmentService,
+        sjp_job_repo: SjpGenerationJobRepository,
     ):
         self.order_repo = order_repo
         self.order_status_repo = order_status_repo
         self.fulfillment_service = fulfillment_service
+        self.sjp_job_repo = sjp_job_repo
 
     def approve_order(self, order_id: int, admin_id: int) -> Order:
         order = self.order_repo.get_by_id_with_relations(order_id)
@@ -28,6 +32,18 @@ class AdminOrderService:
             raise InvalidOrderStateException(
                 f"Order {order_id} is not in review_pending status"
             )
+
+        if order.is_industry_specific:
+            jobs = self.sjp_job_repo.get_by_order_id(order_id)
+            if not jobs:
+                raise InvalidOrderStateException(
+                    f"Order {order_id} is industry-specific but has no SJP generation job"
+                )
+            latest_job = jobs[0]
+            if latest_job.status != SjpGenerationStatus.COMPLETED.value:
+                raise InvalidOrderStateException(
+                    f"Order {order_id} SJP generation is not complete (status: {latest_job.status})"
+                )
 
         order.reviewed_by_admin_id = admin_id
         order.reviewed_at = datetime.now(UTC)

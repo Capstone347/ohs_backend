@@ -38,6 +38,7 @@ class OrderCreateRequest(BaseModel):
     user_email: str = Field(..., example="customer@example.com")
     full_name: str = Field(..., min_length=1, example="John Doe")
     jurisdiction: str = Field(..., min_length=2, max_length=100, example="Ontario")
+    is_industry_specific: bool = Field(default=False, example=False)
 
     @field_validator("user_email")
     @classmethod
@@ -116,6 +117,15 @@ class OrderDetailResponse(BaseModel):
     documents: list[DocumentSummary]
     timeline: list[TimelineEntry]
     naics_codes: list[str]
+
+
+class OrderPublicStatusResponse(BaseModel):
+    order_id: int = Field(..., example=1)
+    order_status: OrderStatusEnum = Field(..., example=OrderStatusEnum.DRAFT)
+    payment_status: PaymentStatus = Field(..., example=PaymentStatus.PENDING)
+    plan_name: str | None = Field(None, example="Basic Plan")
+    is_industry_specific: bool = Field(..., example=False)
+    created_at: datetime
 
 
 class OrderSummaryResponse(BaseModel):

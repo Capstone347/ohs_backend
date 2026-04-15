@@ -19,6 +19,14 @@ class SjpGenerationJobRepository(BaseRepository[SjpGenerationJob]):
             .all()
         )
 
+    def get_all_by_statuses(self, statuses: list[str]) -> list[SjpGenerationJob]:
+        return (
+            self.db.query(SjpGenerationJob)
+            .filter(SjpGenerationJob.status.in_(statuses))
+            .order_by(SjpGenerationJob.created_at.desc())
+            .all()
+        )
+
     def get_by_idempotency_key(self, idempotency_key: str) -> SjpGenerationJob | None:
         if not idempotency_key:
             raise ValueError("idempotency_key is required")

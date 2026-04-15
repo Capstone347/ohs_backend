@@ -59,6 +59,8 @@ def create_checkout_session(
         currency = order.order_status.currency
 
     product_name = f"OHS Manual - {order.plan.name}"
+    if order.is_industry_specific and order.plan.slug != "industry_specific":
+        product_name = f"OHS Manual - {order.plan.name} + Industry Specific"
     success_url = f"{settings.frontend_url}/orders/{order_id}/success"
     cancel_url = f"{settings.frontend_url}/orders/{order_id}/payment"
 

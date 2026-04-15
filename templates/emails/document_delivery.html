@@ -8,8 +8,23 @@
     <p>Hello {{ company_name }},</p>
     <p>
       Your OHS manual for order #{{ order_id }} is ready. You can download it
-      here: <a href="{{ download_link }}">Download</a>
+      here: <a href="{{ download_link }}">Download Manual</a>
     </p>
+    {% if sjp_download_link %}
+    <p>
+      Your Safe Job Procedures document ({{ sjp_count }} procedure{{ 's' if
+      sjp_count and sjp_count > 1 else '' }}) is also ready:
+      <a href="{{ sjp_download_link }}"
+        >Download Safe Job Procedures</a
+      >
+    </p>
+    <p>
+      <em
+        >The Safe Job Procedures document was generated using AI and reviewed by
+        our team. It does not constitute legal advice.</em
+      >
+    </p>
+    {% endif %}
     <p>Thank you, <br />OHS Remote</p>
   </body>
 </html>

@@ -17,6 +17,8 @@ from app.services.exceptions import (
 TEMPLATES_DIR = Path(__file__).parent.parent.parent / "templates" / "documents"
 MAX_LOGO_WIDTH = 2.5
 MAX_LOGO_HEIGHT = 1.5
+MAX_HEADER_LOGO_WIDTH = 0.9
+MAX_HEADER_LOGO_HEIGHT = 0.6
 
 
 class TemplateLoader:
@@ -28,6 +30,7 @@ class TemplateLoader:
         template_map = {
             PlanSlug.BASIC: "basic_manual_template.docx",
             PlanSlug.COMPREHENSIVE: "comprehensive_manual_template.docx",
+            PlanSlug.INDUSTRY_SPECIFIC: "SJP-Template.docx",
         }
         
         template_filename = template_map.get(plan_slug)
@@ -89,41 +92,45 @@ def replace_template_variables(doc: Document, replacements: dict[str, str]) -> D
     return doc
 
 
-def resize_logo_image(logo_path: Path) -> tuple[bytes, float, float]:
+def resize_logo_image(
+    logo_path: Path,
+    max_width: float = MAX_LOGO_WIDTH,
+    max_height: float = MAX_LOGO_HEIGHT,
+) -> tuple[bytes, float, float]:
     if not logo_path:
         raise ValueError("logo_path is required")
-    
+
     if not logo_path.exists():
         raise FileNotFoundServiceException(f"Logo file not found: {logo_path}")
-    
+
     try:
         image = Image.open(logo_path)
     except Exception as e:
         raise FileStorageServiceException(f"Failed to open logo image: {str(e)}")
-    
+
     original_width, original_height = image.size
     aspect_ratio = original_width / original_height
-    
+
     if original_width > original_height:
-        new_width = min(MAX_LOGO_WIDTH, original_width / 96)
+        new_width = min(max_width, original_width / 96)
         new_height = new_width / aspect_ratio
-        if new_height > MAX_LOGO_HEIGHT:
-            new_height = MAX_LOGO_HEIGHT
+        if new_height > max_height:
+            new_height = max_height
             new_width = new_height * aspect_ratio
     else:
-        new_height = min(MAX_LOGO_HEIGHT, original_height / 96)
+        new_height = min(max_height, original_height / 96)
         new_width = new_height * aspect_ratio
-        if new_width > MAX_LOGO_WIDTH:
-            new_width = MAX_LOGO_WIDTH
+        if new_width > max_width:
+            new_width = max_width
             new_height = new_width / aspect_ratio
-    
+
     img_byte_arr = io.BytesIO()
     if logo_path.suffix.lower() == '.png':
         image.save(img_byte_arr, format='PNG')
     else:
         image.save(img_byte_arr, format='JPEG')
     img_byte_arr.seek(0)
-    
+
     return img_byte_arr.getvalue(), new_width, new_height
 
 
@@ -137,40 +144,48 @@ def insert_company_logo(doc: Document, logo_path: Path, placeholder: str = "{{lo
     if not placeholder:
         raise ValueError("placeholder is required")
     
-    logo_bytes, width_inches, height_inches = resize_logo_image(logo_path)
-    
+    body_logo_bytes, body_width_inches, _ = resize_logo_image(logo_path)
+    header_logo_bytes, header_width_inches, _ = resize_logo_image(
+        logo_path,
+        max_width=MAX_HEADER_LOGO_WIDTH,
+        max_height=MAX_HEADER_LOGO_HEIGHT,
+    )
+
     logo_inserted = False
-    
-    def _insert_in_paragraph(paragraph) -> bool:
+
+    def _insert_in_paragraph(paragraph, is_header: bool) -> bool:
         if placeholder not in paragraph.text:
             return False
         _replace_in_paragraph(paragraph, placeholder, "")
         paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = paragraph.add_run()
-        run.add_picture(io.BytesIO(logo_bytes), width=Inches(width_inches))
+        if is_header:
+            run.add_picture(io.BytesIO(header_logo_bytes), width=Inches(header_width_inches))
+        else:
+            run.add_picture(io.BytesIO(body_logo_bytes), width=Inches(body_width_inches))
         return True
 
     for paragraph in doc.paragraphs:
-        if _insert_in_paragraph(paragraph):
+        if _insert_in_paragraph(paragraph, is_header=False):
             logo_inserted = True
 
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
                 for paragraph in cell.paragraphs:
-                    if _insert_in_paragraph(paragraph):
+                    if _insert_in_paragraph(paragraph, is_header=False):
                         logo_inserted = True
 
     for section in doc.sections:
         for header_footer in [section.header, section.footer]:
             for paragraph in header_footer.paragraphs:
-                if _insert_in_paragraph(paragraph):
+                if _insert_in_paragraph(paragraph, is_header=True):
                     logo_inserted = True
             for table in header_footer.tables:
                 for row in table.rows:
                     for cell in row.cells:
                         for paragraph in cell.paragraphs:
-                            if _insert_in_paragraph(paragraph):
+                            if _insert_in_paragraph(paragraph, is_header=True):
                                 logo_inserted = True
 
     if not logo_inserted:

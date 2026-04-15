@@ -34,7 +34,10 @@ from app.services.stripe_provider import StripePaymentProvider
 from app.services.order_fulfillment_service import OrderFulfillmentService
 from app.services.admin_order_service import AdminOrderService
 from app.services.admin_auth_service import AdminAuthService
+from app.services.llm_provider import OpenAiLlmProvider
+from app.services.jurisdiction_service import JurisdictionService
 from app.repositories.admin_user_repository import AdminUserRepository
+from app.repositories.llm_usage_log_repository import LlmUsageLogRepository
 from app.models.admin_user import AdminRole
 from app.config import settings
 
@@ -186,17 +189,72 @@ def get_industry_intake_service(
     return IndustryIntakeService(order_repo, intake_repo)
 
 
+def get_llm_provider() -> OpenAiLlmProvider:
+    return OpenAiLlmProvider(
+        api_key=settings.openai_api_key,
+        model=settings.llm_model,
+        temperature=settings.llm_temperature,
+    )
+
+
+def get_jurisdiction_service() -> JurisdictionService:
+    return JurisdictionService()
+
+
+def get_llm_usage_log_repository(db: Session = Depends(get_db)) -> LlmUsageLogRepository:
+    return LlmUsageLogRepository(db)
+
+
+def get_sjp_toc_generator(
+    llm_provider: OpenAiLlmProvider = Depends(get_llm_provider),
+    jurisdiction_service: JurisdictionService = Depends(get_jurisdiction_service),
+) -> "SjpTocGenerator":
+    from app.services.sjp_toc_generator import SjpTocGenerator
+    return SjpTocGenerator(llm_provider, jurisdiction_service)
+
+
+def get_sjp_content_generator(
+    llm_provider: OpenAiLlmProvider = Depends(get_llm_provider),
+    jurisdiction_service: JurisdictionService = Depends(get_jurisdiction_service),
+) -> "SjpContentGenerator":
+    from app.services.sjp_content_generator import SjpContentGenerator
+    return SjpContentGenerator(llm_provider, jurisdiction_service)
+
+
 def get_sjp_generation_service(
     order_repo: OrderRepository = Depends(get_order_repository),
     sjp_job_repo: SjpGenerationJobRepository = Depends(get_sjp_generation_job_repository),
     sjp_toc_entry_repo: SjpTocEntryRepository = Depends(get_sjp_toc_entry_repository),
     sjp_content_repo: SjpContentRepository = Depends(get_sjp_content_repository),
+    llm_usage_log_repo: LlmUsageLogRepository = Depends(get_llm_usage_log_repository),
+    order_status_repo: OrderStatusRepository = Depends(get_order_status_repository),
+    toc_generator: "SjpTocGenerator" = Depends(get_sjp_toc_generator),
+    content_generator: "SjpContentGenerator" = Depends(get_sjp_content_generator),
 ) -> SjpGenerationService:
     return SjpGenerationService(
         order_repo=order_repo,
         sjp_job_repo=sjp_job_repo,
         sjp_toc_entry_repo=sjp_toc_entry_repo,
         sjp_content_repo=sjp_content_repo,
+        llm_usage_log_repo=llm_usage_log_repo,
+        order_status_repo=order_status_repo,
+        toc_generator=toc_generator,
+        content_generator=content_generator,
+    )
+
+
+def get_sjp_document_service(
+    sjp_job_repo: SjpGenerationJobRepository = Depends(get_sjp_generation_job_repository),
+    sjp_toc_entry_repo: SjpTocEntryRepository = Depends(get_sjp_toc_entry_repository),
+    sjp_content_repo: SjpContentRepository = Depends(get_sjp_content_repository),
+    document_repo: DocumentRepository = Depends(get_document_repository),
+    file_storage_service: FileStorageService = Depends(get_file_storage_service),
+    jurisdiction_service: JurisdictionService = Depends(get_jurisdiction_service),
+) -> "SjpDocumentService":
+    from app.services.sjp_document_service import SjpDocumentService
+    return SjpDocumentService(
+        sjp_job_repo, sjp_toc_entry_repo, sjp_content_repo,
+        document_repo, file_storage_service, jurisdiction_service,
     )
 
 
@@ -250,6 +308,8 @@ def get_order_fulfillment_service(
     document_service: DocumentService = Depends(get_document_service),
     email_service: EmailService = Depends(get_email_service),
     renderer: EmailTemplateRenderer = Depends(get_email_template_renderer),
+    sjp_document_service: "SjpDocumentService" = Depends(get_sjp_document_service),
+    sjp_job_repo: SjpGenerationJobRepository = Depends(get_sjp_generation_job_repository),
 ) -> OrderFulfillmentService:
     return OrderFulfillmentService(
         order_repo,
@@ -258,6 +318,8 @@ def get_order_fulfillment_service(
         document_service,
         email_service,
         renderer,
+        sjp_document_service,
+        sjp_job_repo,
     )
 
 
@@ -265,8 +327,9 @@ def get_admin_order_service(
     order_repo: OrderRepository = Depends(get_order_repository),
     order_status_repo: OrderStatusRepository = Depends(get_order_status_repository),
     fulfillment_service: OrderFulfillmentService = Depends(get_order_fulfillment_service),
+    sjp_job_repo: SjpGenerationJobRepository = Depends(get_sjp_generation_job_repository),
 ) -> AdminOrderService:
-    return AdminOrderService(order_repo, order_status_repo, fulfillment_service)
+    return AdminOrderService(order_repo, order_status_repo, fulfillment_service, sjp_job_repo)
 
 
 def get_admin_user_repository(db: Session = Depends(get_db)) -> AdminUserRepository:

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.plan import Plan, PlanSlug, PlanName
@@ -70,13 +72,13 @@ class PlanRepository(BaseRepository[Plan]):
         )
         return self.create(plan)
 
-    def update_base_price(self, plan_id: int, new_price: float) -> Plan:
+    def update_base_price(self, plan_id: int, new_price: Decimal) -> Plan:
         if not plan_id:
             raise ValueError("plan_id is required")
-        
+
         if new_price < 0:
             raise ValueError("new_price cannot be negative")
-        
+
         plan = self.get_by_id_or_fail(plan_id)
         plan.base_price = new_price
         return self.update(plan)

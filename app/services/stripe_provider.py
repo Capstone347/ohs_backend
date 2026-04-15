@@ -142,6 +142,8 @@ def _normalize_event(event: object) -> StripeWebhookEvent:
         payment_status = _safe_get(obj, "status")
 
     metadata_raw = _safe_get(obj, "metadata") or {}
+    if hasattr(metadata_raw, "to_dict"):
+        metadata_raw = metadata_raw.to_dict()
     metadata: dict[str, str] = {}
     if isinstance(metadata_raw, dict):
         for k, v in metadata_raw.items():

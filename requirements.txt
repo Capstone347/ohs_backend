@@ -23,6 +23,9 @@ aiosmtplib
 # Payment Processing
 stripe
 
+# AI / LLM
+openai
+
 # Utilities
 python-multipart
 python-jose
